@@ -9,55 +9,41 @@ import {
 
 import { createHttpVideoApi } from './httpVideoApi'
 
-// Backend address used only during testing.
+// Simulated backend location.
 const BASE_URL = 'http://localhost:8000'
 
-// Clean up after every test to prevent tests from affecting one another.
+// Restore network functions and timers after each test.
 afterEach(() => {
-  // Restore normal timers after tests that simulate time.
   vi.useRealTimers()
-
-  // Restore the original global fetch function.
   vi.unstubAllGlobals()
 })
 
-describe('HTTP Video API adapter', () => {
-  // TEST 1: Verify that ingestion sends the correct POST request.
+describe('HTTP Video API adapter — FastAPI V1', () => {
+  // TEST 1: Verify video ingestion follows the OpenAPI V1 contract.
   it('sends a video ingestion request', async () => {
-    // Simulate a successful response from the backend.
     const mockFetch = vi.fn().mockResolvedValue(
       new Response(
         JSON.stringify({
           video_id: 'video-123',
           status: 'queued',
         }),
-        {
-          status: 202,
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        },
+        { status: 202 },
       ),
     )
 
-    // Replace the real fetch function with our simulation.
     vi.stubGlobal('fetch', mockFetch)
 
-    // Create the HTTP API client.
     const api = createHttpVideoApi(BASE_URL)
 
-    // Simulate submitting a YouTube video.
     const result = await api.ingestVideo({
       url: 'https://www.youtube.com/watch?v=jfKfPfyJRdk',
     })
 
-    // Verify the response.
     expect(result.video_id).toBe('video-123')
     expect(result.status).toBe('queued')
 
-    // Verify the URL, method, headers, request body and cancellation signal.
     expect(mockFetch).toHaveBeenCalledWith(
-      `${BASE_URL}/api/videos/ingest`,
+      `${BASE_URL}/api/v1/videos/ingest`,
       expect.objectContaining({
         method: 'POST',
         headers: {
@@ -71,62 +57,47 @@ describe('HTTP Video API adapter', () => {
     )
   })
 
-  // TEST 2: Verify that the client retrieves a video's status.
-  it('retrieves the status of a video', async () => {
-    // Simulate a video that has finished processing.
+  // TEST 2: Convert the backend "completed" status to UI "ready".
+  it('retrieves and normalizes the video status', async () => {
     const mockFetch = vi.fn().mockResolvedValue(
       new Response(
         JSON.stringify({
           video_id: 'video-123',
-          status: 'ready',
-          title: 'AI Engineering Introduction',
+          status: 'completed',
+          error: null,
         }),
-        {
-          status: 200,
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        },
+        { status: 200 },
       ),
     )
 
-    // Replace fetch with the simulated response.
     vi.stubGlobal('fetch', mockFetch)
 
     const api = createHttpVideoApi(BASE_URL)
-
-    // Request the video status.
     const result = await api.getVideoStatus('video-123')
 
-    // Verify the returned information.
     expect(result.video_id).toBe('video-123')
     expect(result.status).toBe('ready')
-    expect(result.title).toBe('AI Engineering Introduction')
+    expect(result.error).toBeNull()
 
-    // Verify the status endpoint and cancellation signal.
     expect(mockFetch).toHaveBeenCalledWith(
-      `${BASE_URL}/api/videos/video-123/status`,
+      `${BASE_URL}/api/v1/videos/video-123/status`,
       expect.objectContaining({
         signal: expect.any(AbortSignal),
       }),
     )
   })
 
-  // TEST 3: Verify that HTTP errors are reported.
+  // TEST 3: Report backend HTTP errors.
   it('reports an ingestion failure', async () => {
-    // Simulate HTTP 500: Internal Server Error.
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue(
-        new Response(null, {
-          status: 500,
-        }),
+        new Response(null, { status: 500 }),
       ),
     )
 
     const api = createHttpVideoApi(BASE_URL)
 
-    // Verify that the client rejects the failed request.
     await expect(
       api.ingestVideo({
         url: 'https://www.youtube.com/watch?v=jfKfPfyJRdk',
@@ -134,9 +105,8 @@ describe('HTTP Video API adapter', () => {
     ).rejects.toThrow('API request failed (500)')
   })
 
-  // TEST 4: Verify that network failures are preserved.
+  // TEST 4: Preserve network connection errors.
   it('propagates a network failure', async () => {
-    // Simulate a connection failure rather than an HTTP response.
     vi.stubGlobal(
       'fetch',
       vi.fn().mockRejectedValue(
@@ -146,64 +116,53 @@ describe('HTTP Video API adapter', () => {
 
     const api = createHttpVideoApi(BASE_URL)
 
-    // Verify that the original network error is reported.
     await expect(
       api.getVideoStatus('video-123'),
     ).rejects.toThrow('Failed to fetch')
   })
 
-  // TEST 5: Verify that requests are cancelled after 10 seconds.
-  it('cancels a request after the 10-second timeout', async () => {
-    // Use a simulated clock instead of waiting 10 real seconds.
+  // TEST 5: Verify cancellation after 10 seconds.
+  it('cancels a request after the timeout', async () => {
     vi.useFakeTimers()
 
-    // Simulate a server that never responds unless cancelled.
+    // A hanging request rejects only when the signal is aborted.
     const mockFetch = vi.fn(
       (_url: string, options?: RequestInit) =>
         new Promise<Response>((_resolve, reject) => {
-          // Listen for the abort signal from AbortController.
           options?.signal?.addEventListener(
             'abort',
             () => {
-              // Real fetch rejects with AbortError when cancelled.
-              reject(new DOMException('Aborted', 'AbortError'))
+              reject(
+                new DOMException('Aborted', 'AbortError'),
+              )
             },
             { once: true },
           )
         }),
     )
 
-    // Replace the real network function with our simulation.
     vi.stubGlobal('fetch', mockFetch)
 
     const api = createHttpVideoApi(BASE_URL)
 
-    // Start the request and attach the rejection assertion immediately.
+    // Attach the rejection assertion before advancing time.
     const timeoutAssertion = expect(
       api.getVideoStatus('video-123'),
     ).rejects.toThrow(
       'The request timed out. Please try again.',
     )
 
-    // Advance the simulated clock by exactly 10 seconds.
     await vi.advanceTimersByTimeAsync(10_000)
-
-    // Confirm that the request was rejected with our timeout message.
     await timeoutAssertion
 
-    // Verify that fetch was called exactly once.
     expect(mockFetch).toHaveBeenCalledTimes(1)
 
-    // Read the options passed into fetch.
     const requestOptions = mockFetch.mock.calls[0][1]
-
-    // Confirm the request's AbortSignal was actually aborted.
     expect(requestOptions?.signal?.aborted).toBe(true)
   })
 
-  // TEST 6: Reject a video ingestion response containing invalid data.
+  // TEST 6: Reject invalid ingestion responses.
   it('rejects an invalid video ingestion response', async () => {
-    // Simulate a response with a numeric ID and unsupported status.
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue(
@@ -212,16 +171,13 @@ describe('HTTP Video API adapter', () => {
             video_id: 123,
             status: 'completed',
           }),
-          {
-            status: 202,
-          },
+          { status: 202 },
         ),
       ),
     )
 
     const api = createHttpVideoApi(BASE_URL)
 
-    // The validator must reject data that violates our API contract.
     await expect(
       api.ingestVideo({
         url: 'https://www.youtube.com/watch?v=jfKfPfyJRdk',
@@ -231,9 +187,56 @@ describe('HTTP Video API adapter', () => {
     )
   })
 
-  // TEST 7: Reject a video status response with invalid metadata.
+  // TEST 7: Reject incorrect status response types.
   it('rejects an invalid video status response', async () => {
-    // Simulate a response with a number where a title string is expected.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            video_id: 'video-123',
+            status: 'completed',
+            error: 42,
+          }),
+          { status: 200 },
+        ),
+      ),
+    )
+
+    const api = createHttpVideoApi(BASE_URL)
+
+    await expect(
+      api.getVideoStatus('video-123'),
+    ).rejects.toThrow(
+      'Invalid video status response from the API.',
+    )
+  })
+
+  // TEST 8: The backend is not implemented yet.
+  it('reports an HTTP 501 response', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            detail: 'Video ingestion is not implemented yet.',
+          }),
+          { status: 501 },
+        ),
+      ),
+    )
+
+    const api = createHttpVideoApi(BASE_URL)
+
+    await expect(
+      api.ingestVideo({
+        url: 'https://www.youtube.com/watch?v=jfKfPfyJRdk',
+      }),
+    ).rejects.toThrow('API request failed (501)')
+  })
+
+  // TEST 9: Reject statuses outside the FastAPI V1 contract.
+  it('rejects an unsupported backend status', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue(
@@ -241,18 +244,14 @@ describe('HTTP Video API adapter', () => {
           JSON.stringify({
             video_id: 'video-123',
             status: 'ready',
-            title: 42,
           }),
-          {
-            status: 200,
-          },
+          { status: 200 },
         ),
       ),
     )
 
     const api = createHttpVideoApi(BASE_URL)
 
-    // The validator must detect the invalid title.
     await expect(
       api.getVideoStatus('video-123'),
     ).rejects.toThrow(

@@ -1,12 +1,12 @@
 
-// Represents all possible video processing states.
+// The processing states used by our React interface.
 export type VideoStatus =
   | 'queued'
   | 'processing'
   | 'ready'
   | 'failed'
 
-// Represents a video stored in the application.
+// The complete video object used inside our existing React UI.
 export interface Video {
   id: string
   source_url: string
@@ -17,22 +17,36 @@ export interface Video {
   error?: string | null
 }
 
-// Data sent to the backend when requesting video ingestion.
+// Request sent when the user submits a YouTube URL.
 export interface IngestVideoRequest {
   url: string
 }
 
-// Initial response from the backend after ingestion is requested.
+// Response returned immediately after submitting a video.
 export interface IngestVideoResponse {
   video_id: string
   status: VideoStatus
 }
 
-// Response used to check whether processing has finished.
+// Normalized status response used by our frontend.
 export interface VideoStatusResponse {
   video_id: string
   status: VideoStatus
   title?: string | null
   thumbnail_url?: string | null
   error?: string | null
+}
+
+// One video returned by the FastAPI library endpoint.
+// This is a frontend-friendly representation of the backend item.
+export interface VideoLibraryItem {
+  video_id: string
+  title: string
+  status: VideoStatus
+  source_url: string | null
+}
+
+// The complete video collection returned by listVideos().
+export interface VideoListResponse {
+  videos: VideoLibraryItem[]
 }

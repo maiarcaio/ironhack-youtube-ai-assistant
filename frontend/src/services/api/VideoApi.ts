@@ -2,18 +2,25 @@
 import type {
   IngestVideoRequest,
   IngestVideoResponse,
+  VideoListResponse,
   VideoStatusResponse,
 } from '../../types/video'
 
-// Defines the operations that every video API must provide.
+// This interface is a contract shared by both API implementations.
+//
+// React does not need to know whether the data comes from
+// our mock backend or Diogo's FastAPI application.
 export interface VideoApi {
-  // Submit a YouTube URL and receive a video identifier.
+  // Submit a YouTube video for processing.
   ingestVideo(
     request: IngestVideoRequest,
   ): Promise<IngestVideoResponse>
 
-  // Retrieve the current processing status of a video.
+  // Check whether one video has finished processing.
   getVideoStatus(
     videoId: string,
   ): Promise<VideoStatusResponse>
+
+  // Retrieve the collection of available videos.
+  listVideos(): Promise<VideoListResponse>
 }
