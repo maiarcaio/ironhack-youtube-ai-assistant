@@ -3,11 +3,22 @@ import { useEffect, useState } from 'react'
 import type { SubmitEvent } from 'react'
 
 import { AppShell } from './components/layout/AppShell'
+import { ChatPanel } from './components/chat/ChatPanel'
+import { createHttpChatApi } from './services/api/httpChatApi'
 import { VideoCard } from './components/video/VideoCard'
 import { videoApi } from './services/api'
 import type { Video, VideoStatus } from './types/video'
 
 import './App.css'
+import './WorkspaceChat.css'
+
+// Match the existing video API environment configuration.
+const useMockApi = import.meta.env.VITE_USE_MOCK_API !== 'false'
+const apiBaseUrl =
+  import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+
+// Create the chat client once, not on every React render.
+const chatApi = createHttpChatApi(apiBaseUrl)
 
 // The two screens currently supported by our application shell.
 type Page = 'library' | 'workspace'
@@ -478,8 +489,9 @@ function App() {
 
                   {selectedVideo.status === 'ready' && (
                     <p>
-                      This video is ready. Transcript and
-                      AI chat integration will be added next.
+                      Video processing is complete. Use the
+                      Q&amp;A workspace below to explore this
+                      video's indexed content.
                     </p>
                   )}
 
@@ -516,6 +528,30 @@ function App() {
           )}
         </div>
       )}
+      {/* Keep ChatPanel mounted while navigating between pages.
+          This preserves each video's in-memory conversation. */}
+      <div
+        className="vm-workspace-chat"
+        hidden={activePage !== 'workspace' || !selectedVideo}
+      >
+        <div className="vm-workspace-chat-heading">
+          <span className="section-kicker">
+            AI VIDEO ASSISTANT
+          </span>
+          <h2>Explore with AI</h2>
+          <p>
+            Ask questions and examine evidence from the video.
+          </p>
+        </div>
+
+        <ChatPanel
+          videoId={selectedVideoId}
+          isReadyForChat={
+            !useMockApi && selectedVideo?.status === 'ready'
+          }
+          api={chatApi}
+        />
+      </div>
     </AppShell>
   )
 }
