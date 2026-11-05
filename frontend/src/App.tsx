@@ -1,182 +1,522 @@
 
 import { useEffect, useState } from 'react'
+import type { SubmitEvent } from 'react'
+
+import { AppShell } from './components/layout/AppShell'
+import { VideoCard } from './components/video/VideoCard'
 import { videoApi } from './services/api'
-import type {
-  VideoStatus,
-  VideoStatusResponse,
-} from './types/video'
+import type { Video, VideoStatus } from './types/video'
+
 import './App.css'
 
+// The two screens currently supported by our application shell.
+type Page = 'library' | 'workspace'
+
+// Filters for the video collection.
+type LibraryFilter = 'all' | VideoStatus
+
 function App() {
-  // Store the URL entered by the user.
+  // Keep every video submitted during this browser session.
+  const [videos, setVideos] = useState<Video[]>([])
+
+  // Track the currently selected video and screen.
+  const [selectedVideoId, setSelectedVideoId] =
+    useState<string | null>(null)
+  const [activePage, setActivePage] = useState<Page>('library')
+
+  // Store form, search and filter state.
   const [videoUrl, setVideoUrl] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [filter, setFilter] = useState<LibraryFilter>('all')
 
-  // Track whether a video submission is in progress.
+  // Track submission and request errors.
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submissionError, setSubmissionError] =
+    useState<string | null>(null)
+  const [pollingErrors, setPollingErrors] =
+    useState<Record<string, string>>({})
 
-  // Store the video ID returned by the API.
-  const [videoId, setVideoId] = useState<string | null>(null)
+  // Find the video selected by the user.
+  const selectedVideo =
+    videos.find((video) => video.id === selectedVideoId) ?? null
 
-  // Track the video's current processing status.
-  const [status, setStatus] = useState<VideoStatus | null>(null)
+  // Calculate useful counts for the library interface.
+  const readyCount = videos.filter(
+    (video) => video.status === 'ready',
+  ).length
 
-  // Store the video title when processing finishes.
-  const [videoTitle, setVideoTitle] = useState<string | null>(null)
+  const processingCount = videos.filter(
+    (video) =>
+      video.status === 'processing' || video.status === 'queued',
+  ).length
 
-  // Store errors so they can be displayed to the user.
-  const [error, setError] = useState<string | null>(null)
+  // Search video titles and original URLs.
+  // Filtering happens in the browser for the current collection.
+  const filteredVideos = videos.filter((video) => {
+    const searchText = searchQuery.trim().toLowerCase()
 
-  // Submit a YouTube URL using our selected API adapter.
-  async function handleSubmit(event: React.SubmitEvent<HTMLFormElement>) {
-    // Prevent the browser from refreshing the page.
+    const matchesSearch =
+      video.title.toLowerCase().includes(searchText) ||
+      video.source_url.toLowerCase().includes(searchText)
+
+    const matchesStatus =
+      filter === 'all' || video.status === filter
+
+    return matchesSearch && matchesStatus
+  })
+
+  // Identify videos that still need status updates.
+  const pendingVideoIds = videos
+    .filter(
+      (video) =>
+        video.status === 'queued' ||
+        video.status === 'processing',
+    )
+    .map((video) => video.id)
+    .join('|')
+
+  // Add a new video using our existing API architecture.
+  async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault()
 
-    // Prevent repeated submissions while one is running.
     if (isSubmitting) return
 
-    // Reset the previous video result before submitting another.
+    const sourceUrl = videoUrl.trim()
+
     setIsSubmitting(true)
-    setError(null)
-    setVideoId(null)
-    setStatus(null)
-    setVideoTitle(null)
+    setSubmissionError(null)
 
     try {
-      // Submit the URL through the common API interface.
       const response = await videoApi.ingestVideo({
-        url: videoUrl.trim(),
+        url: sourceUrl,
       })
 
-      // Store the response in React state.
-      setStatus(response.status)
-      setVideoId(response.video_id)
+      // Construct the initial library record.
+      const newVideo: Video = {
+        id: response.video_id,
+        source_url: sourceUrl,
+        title: 'Processing video',
+        thumbnail_url: null,
+        status: response.status,
+        created_at: new Date().toISOString(),
+        error: null,
+      }
+
+      // Preserve existing videos when adding another one.
+      setVideos((current) => [newVideo, ...current])
+      setSelectedVideoId(newVideo.id)
+      setVideoUrl('')
+
+      // Return to the library so the new video is visible.
+      setFilter('all')
+      setSearchQuery('')
+      setActivePage('library')
     } catch (caughtError) {
-      // Convert a failed request into a readable message.
-      const message =
+      setSubmissionError(
         caughtError instanceof Error
           ? caughtError.message
-          : 'Unable to submit the video.'
-
-      setError(message)
+          : 'Unable to add this video.',
+      )
     } finally {
-      // Re-enable the form after the request finishes.
       setIsSubmitting(false)
     }
   }
 
-  // Automatically check the video's status after submission.
+  // Navigate from a library card into that video's workspace.
+  function handleSelectVideo(videoId: string) {
+    setSelectedVideoId(videoId)
+    setActivePage('workspace')
+  }
+
+  // Poll the status of each unfinished video.
   useEffect(() => {
-    // No video means there is nothing to monitor.
-    if (!videoId) return
+    if (!pendingVideoIds) return
 
-    // Capture the ID so TypeScript knows it cannot be null here.
-    const currentVideoId = videoId
-
-    // Track whether React has cleaned up this effect.
+    const videoIds = pendingVideoIds.split('|')
     let cancelled = false
-
-    // Store the next scheduled polling operation.
     let timeoutId: ReturnType<typeof setTimeout> | undefined
 
-    async function checkStatus() {
-      try {
-        // Ask the selected API adapter for the current status.
-        const response: VideoStatusResponse =
-          await videoApi.getVideoStatus(currentVideoId)
+    async function checkPendingVideos() {
+      // Fetch the status of every pending video.
+      await Promise.all(
+        videoIds.map(async (videoId) => {
+          try {
+            const response = await videoApi.getVideoStatus(videoId)
 
-        // Ignore responses from an outdated effect.
-        if (cancelled) return
+            if (cancelled) return
 
-        // Update the interface with the latest information.
-        setStatus(response.status)
-        setVideoTitle(response.title ?? null)
+            // Update only the video associated with this response.
+            setVideos((current) =>
+              current.map((video) =>
+                video.id === videoId
+                  ? {
+                      ...video,
+                      status: response.status,
+                      title: response.title ?? video.title,
+                      thumbnail_url:
+                        response.thumbnail_url ??
+                        video.thumbnail_url,
+                      error:
+                        response.status === 'failed'
+                          ? response.error ??
+                            'Video processing failed.'
+                          : null,
+                    }
+                  : video,
+              ),
+            )
 
-        // Stop polling if the backend reports a failure.
-        if (response.status === 'failed') {
-          setError(response.error ?? 'Video processing failed.')
-          return
-        }
+            // Clear a previous polling error after recovery.
+            setPollingErrors((current) => {
+              if (!(videoId in current)) return current
 
-        // Check again only while processing is incomplete.
-        if (
-          response.status === 'queued' ||
-          response.status === 'processing'
-        ) {
-          timeoutId = setTimeout(checkStatus, 1000)
-        }
-      } catch (caughtError) {
-        // Ignore errors from a request that is no longer relevant.
-        if (cancelled) return
+              const updated = { ...current }
+              delete updated[videoId]
+              return updated
+            })
+          } catch (caughtError) {
+            if (cancelled) return
 
-        // Display the error and stop polling.
-        const message =
-          caughtError instanceof Error
-            ? caughtError.message
-            : 'Unable to check video status.'
+            // A status-check failure is not proof that ingestion failed.
+            setPollingErrors((current) => ({
+              ...current,
+              [videoId]:
+                caughtError instanceof Error
+                  ? caughtError.message
+                  : 'Unable to check video status.',
+            }))
+          }
+        }),
+      )
 
-        setError(message)
+      // Schedule the next batch only after this one finishes.
+      if (!cancelled) {
+        timeoutId = setTimeout(() => {
+          void checkPendingVideos()
+        }, 1000)
       }
     }
 
-    // Start checking immediately.
-    void checkStatus()
+    // Start the first check immediately.
+    void checkPendingVideos()
 
-    // Cancel future checks if the component or video changes.
+    // Ignore late results and cancel scheduled checks.
     return () => {
       cancelled = true
       clearTimeout(timeoutId)
     }
-  }, [videoId])
+  }, [pendingVideoIds])
 
   return (
-    <main>
-      <header>
-        <h1>VideoMind AI</h1>
-        <p>Turn YouTube videos into interactive learning experiences.</p>
-      </header>
+    <AppShell
+      activePage={activePage}
+      onNavigate={setActivePage}
+    >
+      {activePage === 'library' ? (
+        <div className="library-page">
+          {/* Editorial hero, based on the Stitch dashboard. */}
+          <section className="library-hero">
+            <div className="hero-content">
+              <span className="eyebrow">
+                <span className="eyebrow-dot" />
+                YOUR AI LEARNING STUDIO
+              </span>
 
-      <section>
-        <h2>Add a video</h2>
+              <h1>
+                Don&apos;t just watch.
+                <span> Understand everything.</span>
+              </h1>
 
-        <form onSubmit={handleSubmit}>
-          <label htmlFor="video-url">YouTube URL</label>
-
-          <input
-            id="video-url"
-            type="url"
-            value={videoUrl}
-            onChange={(event) => setVideoUrl(event.target.value)}
-            placeholder="https://www.youtube.com/watch?v=..."
-            disabled={isSubmitting}
-            required
-          />
-
-          <button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? 'Submitting...' : 'Add Video'}
-          </button>
-        </form>
-
-        {videoId && (
-          <section aria-label="Video processing status">
-            <p>Video ID: {videoId}</p>
-
-            <p role="status">
-              Status: {status ?? 'checking'}
-            </p>
-
-            {status === 'ready' && (
               <p>
-                Video ready: {videoTitle ?? 'Untitled video'}
+                Turn YouTube videos into searchable knowledge.
+                Organize your library and explore what you learn.
               </p>
-            )}
-          </section>
-        )}
 
-        {error && (
-          <p role="alert">{error}</p>
-        )}
-      </section>
-    </main>
+              <a className="hero-action" href="#add-video">
+                <span aria-hidden="true">＋</span>
+                Add a YouTube video
+              </a>
+            </div>
+
+            <div className="hero-insight">
+              <span className="insight-label">YOUR WORKSPACE</span>
+              <strong>{videos.length} videos collected</strong>
+              <p>
+                Your knowledge library starts with the videos
+                you choose to explore.
+              </p>
+              <div className="insight-metrics">
+                <div>
+                  <strong>{readyCount}</strong>
+                  <span>Ready</span>
+                </div>
+                <div>
+                  <strong>{processingCount}</strong>
+                  <span>In progress</span>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <div className="library-columns">
+            <section
+              className="library-main"
+              aria-labelledby="library-heading"
+            >
+              <div className="section-heading">
+                <div>
+                  <span className="section-kicker">
+                    YOUR COLLECTION
+                  </span>
+                  <h2 id="library-heading">
+                    Your video library
+                    <span className="library-count">
+                      {videos.length}
+                    </span>
+                  </h2>
+                </div>
+              </div>
+
+              <label className="search-field">
+                <span className="search-symbol" aria-hidden="true">
+                  ⌕
+                </span>
+                <span className="sr-only">Search videos</span>
+                <input
+                  type="search"
+                  value={searchQuery}
+                  onChange={(event) =>
+                    setSearchQuery(event.target.value)
+                  }
+                  placeholder="Search titles or YouTube URLs..."
+                />
+              </label>
+
+              <div className="filter-row" aria-label="Filter videos">
+                {(
+                  [
+                    ['all', 'All'],
+                    ['ready', 'Ready'],
+                    ['queued', 'Queued'],
+                    ['processing', 'Processing'],
+                    ['failed', 'Failed'],
+                  ] as const
+                ).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    className={
+                      filter === value
+                        ? 'filter-chip active'
+                        : 'filter-chip'
+                    }
+                    aria-pressed={filter === value}
+                    onClick={() => setFilter(value)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              {filteredVideos.length > 0 ? (
+                <div className="video-library">
+                  {filteredVideos.map((video) => (
+                    <VideoCard
+                      key={video.id}
+                      video={video}
+                      isSelected={
+                        video.id === selectedVideoId
+                      }
+                      onSelect={handleSelectVideo}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="empty-library">
+                  <div className="empty-icon" aria-hidden="true">
+                    ▣
+                  </div>
+                  <h3>
+                    {videos.length === 0
+                      ? 'Your library starts here'
+                      : 'No matching videos'}
+                  </h3>
+                  <p>
+                    {videos.length === 0
+                      ? 'Add a YouTube video to begin building your learning library.'
+                      : 'Try changing your search or status filter.'}
+                  </p>
+                  {videos.length === 0 && (
+                    <a href="#add-video" className="text-link">
+                      Add your first video
+                    </a>
+                  )}
+                </div>
+              )}
+            </section>
+
+            <aside className="library-side-panel">
+              <section
+                id="add-video"
+                className="panel-card"
+                aria-labelledby="add-video-heading"
+              >
+                <span className="section-kicker">
+                  GROW YOUR KNOWLEDGE
+                </span>
+                <h2 id="add-video-heading">Add a video</h2>
+                <p>
+                  Paste a YouTube link to add it to your library.
+                </p>
+
+                <form
+                  className="add-video-form"
+                  onSubmit={handleSubmit}
+                >
+                  <label htmlFor="video-url">
+                    YouTube URL
+                  </label>
+
+                  <input
+                    id="video-url"
+                    type="url"
+                    value={videoUrl}
+                    onChange={(event) =>
+                      setVideoUrl(event.target.value)
+                    }
+                    placeholder="https://www.youtube.com/watch?v=..."
+                    disabled={isSubmitting}
+                    required
+                  />
+
+                  <button
+                    type="submit"
+                    className="primary-button"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting
+                      ? 'Adding video...'
+                      : '＋ Add to library'}
+                  </button>
+                </form>
+
+                {submissionError && (
+                  <p role="alert" className="error-message">
+                    {submissionError}
+                  </p>
+                )}
+              </section>
+
+              <section className="panel-card learning-panel">
+                <span className="section-kicker">
+                  LIBRARY OVERVIEW
+                </span>
+                <h2>Learning progress</h2>
+                <div className="overview-item">
+                  <span>Total videos</span>
+                  <strong>{videos.length}</strong>
+                </div>
+                <div className="overview-item">
+                  <span>Ready to explore</span>
+                  <strong>{readyCount}</strong>
+                </div>
+                <div className="overview-item">
+                  <span>Processing</span>
+                  <strong>{processingCount}</strong>
+                </div>
+              </section>
+            </aside>
+          </div>
+        </div>
+      ) : (
+        <div className="workspace-page">
+          <button
+            type="button"
+            className="back-button"
+            onClick={() => setActivePage('library')}
+          >
+            ← Back to library
+          </button>
+
+          <span className="section-kicker">
+            VIDEO WORKSPACE
+          </span>
+
+          {selectedVideo ? (
+            <>
+              <h1>{selectedVideo.title}</h1>
+
+              <div className="workspace-panel">
+                <div className="workspace-preview">
+                  <span aria-hidden="true">▶</span>
+                  <p>Video workspace</p>
+                </div>
+
+                <div className="workspace-details">
+                  <div className="workspace-status">
+                    <strong>Processing status</strong>
+                    <span
+                      className={`status-pill status-${selectedVideo.status}`}
+                      role="status"
+                    >
+                      {selectedVideo.status}
+                    </span>
+                  </div>
+
+                  <p>
+                    Video ID: <code>{selectedVideo.id}</code>
+                  </p>
+
+                  <a
+                    href={selectedVideo.source_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-link"
+                  >
+                    Open original YouTube video ↗
+                  </a>
+
+                  {selectedVideo.status === 'ready' && (
+                    <p>
+                      This video is ready. Transcript and
+                      AI chat integration will be added next.
+                    </p>
+                  )}
+
+                  {selectedVideo.status === 'failed' && (
+                    <p role="alert" className="error-message">
+                      {selectedVideo.error ??
+                        'Video processing failed.'}
+                    </p>
+                  )}
+
+                  {pollingErrors[selectedVideo.id] && (
+                    <p role="alert" className="error-message">
+                      Status check unavailable:{' '}
+                      {pollingErrors[selectedVideo.id]}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="empty-library">
+              <h1>No video selected</h1>
+              <p>
+                Choose a video from your library to open its workspace.
+              </p>
+              <button
+                type="button"
+                className="primary-button"
+                onClick={() => setActivePage('library')}
+              >
+                Browse library
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </AppShell>
   )
 }
 
