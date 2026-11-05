@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import type { SubmitEvent } from 'react'
 
 import { AppShell } from './components/layout/AppShell'
+import { VideoWorkspace } from './components/workspace/VideoWorkspace'
 import { ChatPanel } from './components/chat/ChatPanel'
 import { createHttpChatApi } from './services/api/httpChatApi'
 import { VideoCard } from './components/video/VideoCard'
@@ -10,7 +11,6 @@ import { videoApi } from './services/api'
 import type { Video, VideoStatus } from './types/video'
 
 import './App.css'
-import './WorkspaceChat.css'
 
 // Match the existing video API environment configuration.
 const useMockApi = import.meta.env.VITE_USE_MOCK_API !== 'false'
@@ -223,7 +223,7 @@ function App() {
       activePage={activePage}
       onNavigate={setActivePage}
     >
-      {activePage === 'library' ? (
+      {activePage === 'library' && (
         <div className="library-page">
           {/* Editorial hero, based on the Stitch dashboard. */}
           <section className="library-hero">
@@ -439,118 +439,31 @@ function App() {
             </aside>
           </div>
         </div>
-      ) : (
-        <div className="workspace-page">
-          <button
-            type="button"
-            className="back-button"
-            onClick={() => setActivePage('library')}
-          >
-            ← Back to library
-          </button>
-
-          <span className="section-kicker">
-            VIDEO WORKSPACE
-          </span>
-
-          {selectedVideo ? (
-            <>
-              <h1>{selectedVideo.title}</h1>
-
-              <div className="workspace-panel">
-                <div className="workspace-preview">
-                  <span aria-hidden="true">▶</span>
-                  <p>Video workspace</p>
-                </div>
-
-                <div className="workspace-details">
-                  <div className="workspace-status">
-                    <strong>Processing status</strong>
-                    <span
-                      className={`status-pill status-${selectedVideo.status}`}
-                      role="status"
-                    >
-                      {selectedVideo.status}
-                    </span>
-                  </div>
-
-                  <p>
-                    Video ID: <code>{selectedVideo.id}</code>
-                  </p>
-
-                  <a
-                    href={selectedVideo.source_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-link"
-                  >
-                    Open original YouTube video ↗
-                  </a>
-
-                  {selectedVideo.status === 'ready' && (
-                    <p>
-                      Video processing is complete. Use the
-                      Q&amp;A workspace below to explore this
-                      video's indexed content.
-                    </p>
-                  )}
-
-                  {selectedVideo.status === 'failed' && (
-                    <p role="alert" className="error-message">
-                      {selectedVideo.error ??
-                        'Video processing failed.'}
-                    </p>
-                  )}
-
-                  {pollingErrors[selectedVideo.id] && (
-                    <p role="alert" className="error-message">
-                      Status check unavailable:{' '}
-                      {pollingErrors[selectedVideo.id]}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </>
-          ) : (
-            <div className="empty-library">
-              <h1>No video selected</h1>
-              <p>
-                Choose a video from your library to open its workspace.
-              </p>
-              <button
-                type="button"
-                className="primary-button"
-                onClick={() => setActivePage('library')}
-              >
-                Browse library
-              </button>
-            </div>
-          )}
-        </div>
       )}
-      {/* Keep ChatPanel mounted while navigating between pages.
-          This preserves each video's in-memory conversation. */}
-      <div
-        className="vm-workspace-chat"
-        hidden={activePage !== 'workspace' || !selectedVideo}
-      >
-        <div className="vm-workspace-chat-heading">
-          <span className="section-kicker">
-            AI VIDEO ASSISTANT
-          </span>
-          <h2>Explore with AI</h2>
-          <p>
-            Ask questions and examine evidence from the video.
-          </p>
-        </div>
 
-        <ChatPanel
-          videoId={selectedVideoId}
-          isReadyForChat={
-            !useMockApi && selectedVideo?.status === 'ready'
+      <div
+        className="vm-workspace-mounted"
+        hidden={activePage !== 'workspace'}
+      >
+        <VideoWorkspace
+          video={selectedVideo}
+          pollingError={
+            selectedVideo
+              ? pollingErrors[selectedVideo.id]
+              : undefined
           }
-          api={chatApi}
-        />
+          isMockMode={useMockApi}
+          onBack={() => setActivePage('library')}
+        >
+          <ChatPanel
+            videoId={selectedVideoId}
+            isReadyForChat={
+              !useMockApi &&
+              selectedVideo?.status === 'ready'
+            }
+            api={chatApi}
+          />
+        </VideoWorkspace>
       </div>
     </AppShell>
   )
