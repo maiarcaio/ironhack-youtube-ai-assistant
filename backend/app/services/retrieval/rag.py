@@ -5,6 +5,7 @@ from app.services.retrieval.vector_store import get_vector_store
 
 
 MODEL_NAME = "gpt-6.1-terra"
+MIN_SIMILARITY_SCORE = 0.25
 
 
 def answer_from_video(
@@ -25,14 +26,20 @@ def answer_from_video(
     # Step 1: Retrieve relevant video segments
     store = get_vector_store()
 
-    documents = store.similarity_search(
-        question,
+    results_with_scores = store.similarity_search_with_score(
+        query=question,
         k=3,
         filter={
             "video_id": {"$eq": video_id},
             "owner_id": {"$eq": owner_id},
         },
     )
+
+    documents = [
+        document
+        for document, score in results_with_scores
+        if float(score) >= MIN_SIMILARITY_SCORE
+    ]
 
     # Step 2: Handle missing evidence without calling the LLM
     if not documents:
