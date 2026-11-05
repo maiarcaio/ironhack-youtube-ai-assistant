@@ -1,4 +1,3 @@
-
 from fastapi.testclient import TestClient
 
 import app.api.chat as chat_api
@@ -9,10 +8,17 @@ client = TestClient(app)
 
 
 def test_chat_success(monkeypatch):
-    """Test a successful RAG response without calling OpenAI."""
+    """Test a successful agent response without calling OpenAI."""
 
-    def fake_answer_from_video(question, video_id, owner_id):
+    def fake_answer_with_agent(
+        question,
+        video_id,
+        owner_id,
+        thread_id=None,
+    ):
         return {
+            "video_id": video_id,
+            "thread_id": thread_id or "test-thread-001",
             "answer": "AI helps analyze football tactics.",
             "sources": [
                 {
@@ -29,8 +35,8 @@ def test_chat_success(monkeypatch):
 
     monkeypatch.setattr(
         chat_api,
-        "answer_from_video",
-        fake_answer_from_video,
+        "answer_with_agent",
+        fake_answer_with_agent,
     )
 
     response = client.post(
@@ -47,9 +53,50 @@ def test_chat_success(monkeypatch):
     data = response.json()
 
     assert data["video_id"] == "test-video-001"
-    assert data["thread_id"]
+    assert data["thread_id"] == "test-thread-001"
+    assert data["answer"] == "AI helps analyze football tactics."
     assert data["model_used"] == "gpt-6.1-terra"
     assert len(data["sources"]) == 1
+    assert data["sources"][0]["chunk_id"] == "test-chunk-001"
+    assert data["insufficient_evidence"] is False
+
+
+def test_chat_existing_thread(monkeypatch):
+    """Verify that an existing conversation ID is preserved."""
+
+    def fake_answer_with_agent(
+        question,
+        video_id,
+        owner_id,
+        thread_id=None,
+    ):
+        return {
+            "video_id": video_id,
+            "thread_id": thread_id or "test-thread-001",
+            "answer": "This is a follow-up answer.",
+            "sources": [],
+            "insufficient_evidence": False,
+            "model_used": "gpt-6.1-terra",
+        }
+
+    monkeypatch.setattr(
+        chat_api,
+        "answer_with_agent",
+        fake_answer_with_agent,
+    )
+
+    response = client.post(
+        "/api/v1/chat",
+        json={
+            "video_id": "test-video-001",
+            "message": "Can you explain that further?",
+            "thread_id": "existing-thread-123",
+            "analysis_mode": "auto",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["thread_id"] == "existing-thread-123"
 
 
 def test_chat_empty_message():
