@@ -1,9 +1,6 @@
 
 import { useEffect, useState } from 'react'
-import {
-  ingestVideo,
-  getVideoStatus,
-} from './services/api/videos'
+import { videoApi } from './services/api'
 import type {
   VideoStatus,
   VideoStatusResponse,
@@ -14,26 +11,30 @@ function App() {
   // Store the URL entered by the user.
   const [videoUrl, setVideoUrl] = useState('')
 
-  // Track the initial submission request.
+  // Track whether a video submission is in progress.
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // Store the submitted video identifier.
+  // Store the video ID returned by the API.
   const [videoId, setVideoId] = useState<string | null>(null)
 
-  // Track the video's current processing state.
+  // Track the video's current processing status.
   const [status, setStatus] = useState<VideoStatus | null>(null)
 
-  // Store optional video information.
+  // Store the video title when processing finishes.
   const [videoTitle, setVideoTitle] = useState<string | null>(null)
 
-  // Store errors for display.
+  // Store errors so they can be displayed to the user.
   const [error, setError] = useState<string | null>(null)
 
+  // Submit a YouTube URL using our selected API adapter.
   async function handleSubmit(event: React.SubmitEvent<HTMLFormElement>) {
+    // Prevent the browser from refreshing the page.
     event.preventDefault()
 
+    // Prevent repeated submissions while one is running.
     if (isSubmitting) return
 
+    // Reset the previous video result before submitting another.
     setIsSubmitting(true)
     setError(null)
     setVideoId(null)
@@ -41,13 +42,16 @@ function App() {
     setVideoTitle(null)
 
     try {
-      const response = await ingestVideo({
+      // Submit the URL through the common API interface.
+      const response = await videoApi.ingestVideo({
         url: videoUrl.trim(),
       })
 
+      // Store the response in React state.
       setStatus(response.status)
       setVideoId(response.video_id)
     } catch (caughtError) {
+      // Convert a failed request into a readable message.
       const message =
         caughtError instanceof Error
           ? caughtError.message
@@ -55,29 +59,45 @@ function App() {
 
       setError(message)
     } finally {
+      // Re-enable the form after the request finishes.
       setIsSubmitting(false)
     }
   }
 
-  // Poll the backend when a video ID is available.
+  // Automatically check the video's status after submission.
   useEffect(() => {
+    // No video means there is nothing to monitor.
     if (!videoId) return
 
+    // Capture the ID so TypeScript knows it cannot be null here.
+    const currentVideoId = videoId
+
+    // Track whether React has cleaned up this effect.
     let cancelled = false
+
+    // Store the next scheduled polling operation.
     let timeoutId: ReturnType<typeof setTimeout> | undefined
 
     async function checkStatus() {
       try {
+        // Ask the selected API adapter for the current status.
         const response: VideoStatusResponse =
-          await getVideoStatus(videoId!)
+          await videoApi.getVideoStatus(currentVideoId)
 
-        // Ignore results from an effect that has been cleaned up.
+        // Ignore responses from an outdated effect.
         if (cancelled) return
 
+        // Update the interface with the latest information.
         setStatus(response.status)
         setVideoTitle(response.title ?? null)
 
-        // Keep polling only while processing is incomplete.
+        // Stop polling if the backend reports a failure.
+        if (response.status === 'failed') {
+          setError(response.error ?? 'Video processing failed.')
+          return
+        }
+
+        // Check again only while processing is incomplete.
         if (
           response.status === 'queued' ||
           response.status === 'processing'
@@ -85,19 +105,23 @@ function App() {
           timeoutId = setTimeout(checkStatus, 1000)
         }
       } catch (caughtError) {
+        // Ignore errors from a request that is no longer relevant.
         if (cancelled) return
 
-        setError(
+        // Display the error and stop polling.
+        const message =
           caughtError instanceof Error
             ? caughtError.message
-            : 'Unable to check video status.',
-        )
+            : 'Unable to check video status.'
+
+        setError(message)
       }
     }
 
+    // Start checking immediately.
     void checkStatus()
 
-    // Stop polling if the selected video changes or React cleans up.
+    // Cancel future checks if the component or video changes.
     return () => {
       cancelled = true
       clearTimeout(timeoutId)
@@ -135,7 +159,10 @@ function App() {
         {videoId && (
           <section aria-label="Video processing status">
             <p>Video ID: {videoId}</p>
-            <p role="status">Status: {status ?? 'checking'}</p>
+
+            <p role="status">
+              Status: {status ?? 'checking'}
+            </p>
 
             {status === 'ready' && (
               <p>
@@ -145,7 +172,9 @@ function App() {
           </section>
         )}
 
-        {error && <p role="alert">{error}</p>}
+        {error && (
+          <p role="alert">{error}</p>
+        )}
       </section>
     </main>
   )
