@@ -88,6 +88,46 @@
         }
       }
     },
+    "/api/v1/chat/stream": {
+      "post": {
+        "tags": [
+          "Chat"
+        ],
+        "summary": "Chat Stream",
+        "description": "Stream agent responses using Server-Sent Events.\n\nLocal development only until authentication is implemented.",
+        "operationId": "chat_stream_api_v1_chat_stream_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatV1Request"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/videos/ingest": {
       "post": {
         "tags": [
