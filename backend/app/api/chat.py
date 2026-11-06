@@ -1,4 +1,3 @@
-from uuid import uuid4
 from fastapi import APIRouter, HTTPException, Request, status
 
 from app.schemas.chat import (
@@ -7,7 +6,7 @@ from app.schemas.chat import (
     ChatV1Response,
 )
 
-from app.services.retrieval.rag import answer_from_video
+from app.services.agents.chat_service import answer_with_agent
 
 
 router = APIRouter(tags=["Chat"])
@@ -56,15 +55,16 @@ def chat_v1(request: ChatV1Request, http_request: Request):
             detail="Explicit response language is not implemented yet.",
         )
 
-    result = answer_from_video(
-        question=request.message,
-        video_id=request.video_id,
-        owner_id="local-dev",
-    )
+    result = answer_with_agent(
+    question=request.message,
+    video_id=request.video_id,
+    owner_id="local-dev",
+    thread_id=request.thread_id,
+)
 
     return ChatV1Response(
         video_id=request.video_id,
-        thread_id=request.thread_id or str(uuid4()),
+        thread_id=result["thread_id"],
         answer=result["answer"],
         sources=result["sources"],
         insufficient_evidence=result["insufficient_evidence"],
