@@ -1,0 +1,465 @@
+
+/*
+ * VideoMind AI — Stitch reference shell
+ *
+ * Stage 5.3A
+ * Source: Framewise Library Dashboard / Warm Editorial Studio
+ *
+ * These selectors are scoped to .app-shell so they can
+ * safely refine the existing App.css declarations.
+ */
+
+/* Application background and shared geometry. */
+.app-shell {
+  --shell-ink: #252321;
+  --shell-paper: #fdf9f6;
+  --shell-canvas: #f7f3f0;
+  --shell-terracotta: #9a442d;
+  --shell-border: #ebe4de;
+  --shell-sage: #2d685b;
+
+  min-height: 100vh;
+  background: var(--shell-canvas);
+}
+
+/* Floating left navigation rail. */
+.app-shell .app-sidebar {
+  position: fixed;
+  z-index: 50;
+
+  top: 16px;
+  bottom: 16px;
+  left: 16px;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  width: 64px;
+  padding: 16px 8px;
+
+  border: 1px solid rgb(0 0 0 / 10%);
+  border-radius: 14px;
+
+  background: var(--shell-ink);
+  box-shadow: 0 10px 30px -4px rgb(40 38 37 / 12%);
+}
+
+/* Locally rendered brand monogram. */
+.app-shell .sidebar-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+
+  margin-bottom: 26px;
+}
+
+.app-shell .brand-mark {
+  display: grid;
+  place-items: center;
+
+  width: 34px;
+  height: 34px;
+
+  border-radius: 10px;
+
+  background: linear-gradient(
+    140deg,
+    #b6573d,
+    #8d3523
+  );
+
+  color: white;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+}
+
+.app-shell .brand-caption {
+  color: #cac5c4;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+/* Vertical navigation buttons. */
+.app-shell .sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+
+  width: 100%;
+  padding: 0;
+}
+
+.app-shell .nav-item {
+  display: grid;
+  place-items: center;
+
+  width: 44px;
+  height: 44px;
+
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+
+  background: transparent;
+  color: #cac5c4;
+
+  transition:
+    background 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.app-shell .nav-item svg {
+  display: block;
+  width: 22px;
+  height: 22px;
+}
+
+.app-shell .nav-item:hover {
+  background: #494645;
+  color: white;
+}
+
+.app-shell .nav-item-active,
+.app-shell .nav-item-active:hover {
+  background: #9a442d;
+  color: white;
+  box-shadow: 0 3px 12px rgb(0 0 0 / 12%);
+}
+
+.app-shell .nav-item:active {
+  transform: scale(0.96);
+}
+
+/* Bottom element of the desktop rail. */
+.app-shell .sidebar-footer {
+  display: grid;
+  place-items: center;
+
+  width: 36px;
+  height: 36px;
+
+  margin-top: auto;
+  border: 1px solid #625d58;
+  border-radius: 50%;
+}
+
+.app-shell .sidebar-footer-label {
+  color: #cac5c4;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+/* Reserve the correct horizontal space for the rail. */
+.app-shell .app-main-area {
+  min-width: 0;
+  min-height: 100vh;
+  padding-left: 96px;
+}
+
+/* Fixed-feeling but naturally scrolling top bar. */
+.app-shell .app-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+
+  min-height: 64px;
+  padding: 0 32px;
+
+  border-bottom: 1px solid rgb(37 35 33 / 5%);
+  background: rgb(253 249 246 / 94%);
+
+  backdrop-filter: blur(16px);
+  box-shadow: 0 1px 8px rgb(0 0 0 / 3%);
+}
+
+.app-shell .topbar-left,
+.app-shell .topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+
+.app-shell .topbar-actions {
+  flex-shrink: 0;
+}
+
+/* Workspace breadcrumb. */
+.app-shell .breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+
+  color: #1c1b1a;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.app-shell .breadcrumb > span:first-child {
+  color: #55423e;
+}
+
+.app-shell .breadcrumb-separator {
+  color: #88726d;
+  font-size: 13px;
+}
+
+.app-shell .breadcrumb strong {
+  font-size: 15px;
+  font-weight: 650;
+}
+
+/* Honest environment status, styled like Stitch's badge. */
+.app-shell .workspace-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+
+  padding: 5px 10px;
+
+  border-radius: 999px;
+  background: #b2efde;
+  color: #346e61;
+
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+.app-shell .workspace-status-dot {
+  display: block;
+  flex: 0 0 6px;
+
+  width: 6px;
+  height: 6px;
+
+  border-radius: 50%;
+  background: #2d685b;
+}
+
+/* Search opens the real library search field. */
+.app-shell .topbar-search {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+
+  max-width: 330px;
+  padding: 9px 10px;
+
+  border: 0;
+  border-radius: 10px;
+  background: #f1edea;
+  color: #55423e;
+
+  font-size: 12px;
+  text-align: left;
+  white-space: nowrap;
+
+  transition: background 160ms ease;
+}
+
+.app-shell .topbar-search:hover {
+  background: #e5e2df;
+}
+
+.app-shell .topbar-search > svg,
+.app-shell .topbar-add > svg {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+}
+
+.app-shell .topbar-search-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.app-shell .topbar-keyboard-hint {
+  display: inline-block;
+
+  padding: 3px 5px;
+  margin-left: 10px;
+
+  border-radius: 5px;
+  background: #e5e2df;
+
+  color: #88726d;
+  font-family: inherit;
+  font-size: 10px;
+}
+
+/* Primary top-bar action. */
+.app-shell .topbar-add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+
+  min-height: 36px;
+  padding: 9px 15px;
+
+  border: 0;
+  border-radius: 9px;
+
+  background: var(--shell-terracotta);
+  color: white;
+
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+
+  box-shadow: 0 4px 18px -5px rgb(154 68 45 / 20%);
+
+  transition:
+    background 160ms ease,
+    transform 160ms ease;
+}
+
+.app-shell .topbar-add:hover {
+  background: #7c2e19;
+}
+
+.app-shell .topbar-add:active {
+  transform: scale(0.97);
+}
+
+/* Main content aligns with the Stitch dashboard gutters. */
+.app-shell .app-content {
+  width: 100%;
+  max-width: 1500px;
+
+  margin: 0 auto;
+  padding: 24px 32px 60px;
+}
+
+/* Compact desktop and tablet header. */
+@media (max-width: 1050px) {
+  .app-shell .app-topbar {
+    padding: 0 22px;
+  }
+
+  .app-shell .topbar-search-label,
+  .app-shell .topbar-keyboard-hint {
+    display: none;
+  }
+
+  .app-shell .topbar-search {
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    padding: 8px;
+  }
+
+  .app-shell .app-content {
+    padding: 22px;
+  }
+}
+
+/* Narrow tablet layout. */
+@media (max-width: 820px) {
+  .app-shell .workspace-label {
+    display: none;
+  }
+
+  .app-shell .topbar-left,
+  .app-shell .topbar-actions {
+    gap: 10px;
+  }
+}
+
+/* Mobile: bottom navigation and simplified top bar. */
+@media (max-width: 600px) {
+  .app-shell .app-sidebar {
+    top: auto;
+    right: 12px;
+    bottom: 12px;
+    left: 12px;
+
+    flex-direction: row;
+    justify-content: center;
+
+    width: auto;
+    height: 64px;
+    padding: 8px 12px;
+
+    border-radius: 16px;
+  }
+
+  .app-shell .sidebar-brand,
+  .app-shell .sidebar-footer {
+    display: none;
+  }
+
+  .app-shell .sidebar-nav {
+    flex-direction: row;
+    justify-content: space-around;
+    gap: 12px;
+
+    width: 100%;
+  }
+
+  .app-shell .nav-item {
+    width: 52px;
+    height: 44px;
+  }
+
+  .app-shell .app-main-area {
+    padding-left: 0;
+    padding-bottom: 86px;
+  }
+
+  .app-shell .app-topbar {
+    min-height: 60px;
+    padding: 0 16px;
+  }
+
+  .app-shell .breadcrumb {
+    gap: 5px;
+    font-size: 11px;
+  }
+
+  .app-shell .breadcrumb strong {
+    font-size: 12px;
+  }
+
+  .app-shell .topbar-actions {
+    gap: 8px;
+  }
+
+  .app-shell .topbar-add {
+    width: 38px;
+    height: 38px;
+    min-height: 38px;
+    padding: 8px;
+  }
+
+  .app-shell .topbar-add-label {
+    display: none;
+  }
+
+  .app-shell .app-content {
+    padding: 16px 16px 32px;
+  }
+}
+
+/* Make transitions respectful of reduced-motion settings. */
+@media (prefers-reduced-motion: reduce) {
+  .app-shell .nav-item,
+  .app-shell .topbar-search,
+  .app-shell .topbar-add {
+    transition: none;
+  }
+}

@@ -14,8 +14,13 @@ export interface ChatApi {
   sendMessage(request: ChatRequest): Promise<ChatResponse>
 }
 
+export type AccessTokenProvider = () => Promise<string | null>
+
 // Create a chat client for a particular backend address.
-export function createHttpChatApi(baseUrl: string): ChatApi {
+export function createHttpChatApi(
+  baseUrl: string,
+  getAccessToken?: AccessTokenProvider,
+): ChatApi {
   // Remove trailing slashes to avoid malformed URLs.
   const apiBase = baseUrl.replace(/\/+$/, '')
 
@@ -47,6 +52,14 @@ export function createHttpChatApi(baseUrl: string): ChatApi {
         )
       }
 
+      const accessToken = getAccessToken
+        ? await getAccessToken()
+        : null
+
+      if (getAccessToken && !accessToken) {
+        throw new Error('Your session has expired. Please sign in again.')
+      }
+
       // AbortController cancels a request that takes too long.
       const controller = new AbortController()
 
@@ -61,6 +74,9 @@ export function createHttpChatApi(baseUrl: string): ChatApi {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
+              ...(accessToken
+                ? { Authorization: `Bearer ${accessToken}` }
+                : {}),
             },
             body: JSON.stringify({
               video_id: request.video_id,

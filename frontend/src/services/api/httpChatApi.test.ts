@@ -40,6 +40,38 @@ function exampleChatResponse() {
 }
 
 describe('FastAPI V1 chat client', () => {
+  it('uses a fresh bearer token for an authenticated request', async () => {
+    const mockFetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify(exampleChatResponse()), { status: 200 }),
+    )
+    vi.stubGlobal('fetch', mockFetch)
+
+    const api = createHttpChatApi(
+      BASE_URL,
+      async () => 'fresh-jwt',
+    )
+
+    await api.sendMessage({
+      video_id: 'video-123',
+      message: 'What is discussed?',
+    })
+
+    expect(mockFetch.mock.calls[0][1].headers).toEqual(
+      expect.objectContaining({
+        Authorization: 'Bearer fresh-jwt',
+      }),
+    )
+  })
+
+  it('rejects an authenticated request with no session', async () => {
+    const api = createHttpChatApi(BASE_URL, async () => null)
+
+    await expect(api.sendMessage({
+      video_id: 'backend-uuid',
+      message: 'What is discussed?',
+    })).rejects.toThrow('Your session has expired')
+  })
+
   it('sends the correct request and validates the answer', async () => {
     const mockFetch = vi.fn().mockResolvedValue(
       new Response(JSON.stringify(exampleChatResponse()), {

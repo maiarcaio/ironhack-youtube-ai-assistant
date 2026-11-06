@@ -190,6 +190,11 @@ export const YouTubePlayer = forwardRef<
       return
     }
 
+    // Keep the validated value narrowed inside the asynchronous initializer.
+    // Newer TypeScript language servers do not retain the outer narrowing
+    // across this closure because the component can render again meanwhile.
+    const validVideoId = videoId
+
     // Create a child for the YouTube API to replace.
     const target = document.createElement('div')
     container.appendChild(target)
@@ -203,7 +208,7 @@ export const YouTubePlayer = forwardRef<
         if (cancelled) return
 
         instance = new YT.Player(target, {
-          videoId,
+          videoId: validVideoId,
           width: '100%',
           height: '100%',
           playerVars: {

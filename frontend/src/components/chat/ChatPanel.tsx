@@ -3,26 +3,31 @@ import { useRef, useState } from 'react'
 import type { SubmitEvent } from 'react'
 
 import type { ChatApi } from '../../services/api/httpChatApi'
+import type { ChatSource } from '../../types/chat'
+import type {
+  streamVideoQuestion,
+} from '../../services/api/videomindBackend'
+
 import { ChatMessage } from './ChatMessage'
 import type { ConversationMessage } from './ChatMessage'
 
 import './ChatPanel.css'
 
-// Every video has its own messages and backend thread ID.
+// Each video maintains an independent conversation and thread.
 interface ChatSession {
   messages: ConversationMessage[]
   threadId: string | null
 }
 
-// The panel depends on an API interface, not a specific backend.
+// Streaming is optional to preserve existing ChatApi tests.
 interface ChatPanelProps {
   videoId: string | null
   isReadyForChat: boolean
   api: ChatApi
+  stream?: typeof streamVideoQuestion
   onSeek?: (seconds: number) => void
 }
 
-// Used when a video has no existing conversation.
 const EMPTY_SESSION: ChatSession = {
   messages: [],
   threadId: null,
@@ -32,47 +37,42 @@ export function ChatPanel({
   videoId,
   isReadyForChat,
   api,
+  stream,
   onSeek,
 }: ChatPanelProps) {
-  // Store conversation histories using the video ID as the key.
+  // Store data independently for each selected video.
   const [sessions, setSessions] = useState<
     Record<string, ChatSession>
   >({})
 
-  // Keep each video's unfinished question separately.
   const [drafts, setDrafts] = useState<
     Record<string, string>
   >({})
 
-  // Error messages also belong to a specific video.
   const [errors, setErrors] = useState<
     Record<string, string | null>
   >({})
 
-  // Track which videos currently have a pending question.
   const [sendingByVideo, setSendingByVideo] = useState<
     Record<string, boolean>
   >({})
 
-  // A Set prevents duplicate submissions before React rerenders.
+  // Refs protect against duplicate requests before rerendering.
   const pendingRequests = useRef(new Set<string>())
-
-  // Generate stable, locally unique message IDs.
   const nextMessageNumber = useRef(0)
 
-  // Read only the session for the currently selected video.
   const activeId = videoId ?? ''
   const session = sessions[activeId] ?? EMPTY_SESSION
   const draft = drafts[activeId] ?? ''
   const isSending = sendingByVideo[activeId] === true
   const error = errors[activeId] ?? null
 
-  // Never allow submissions for an unavailable video.
   const canSubmit =
     Boolean(videoId) &&
     isReadyForChat &&
     !isSending &&
-    draft.trim().length > 0
+    draft.trim().length > 0 &&
+    draft.length <= 500
 
   function updateDraft(value: string) {
     if (!videoId) return
@@ -85,18 +85,49 @@ export function ChatPanel({
 
   function createMessageId(videoKey: string): string {
     nextMessageNumber.current += 1
-
     return `${videoKey}-message-${nextMessageNumber.current}`
+  }
+
+  // Update one conversation without changing other videos.
+  function updateSession(
+    videoKey: string,
+    updater: (previous: ChatSession) => ChatSession,
+  ) {
+    setSessions((current) => ({
+      ...current,
+      [videoKey]: updater(
+        current[videoKey] ?? EMPTY_SESSION,
+      ),
+    }))
+  }
+
+  // Modify the same assistant message as tokens arrive.
+  function updateAssistantMessage(
+    videoKey: string,
+    messageId: string,
+    changes: {
+      text?: string
+      sources?: ChatSource[]
+      insufficient_evidence?: boolean
+    },
+  ) {
+    updateSession(videoKey, (previous) => ({
+      ...previous,
+      messages: previous.messages.map((message) =>
+        message.id === messageId &&
+        message.role === 'assistant'
+          ? { ...message, ...changes }
+          : message,
+      ),
+    }))
   }
 
   async function handleSubmit(
     event: SubmitEvent<HTMLFormElement>,
   ) {
-    // Prevent the browser from refreshing the page.
     event.preventDefault()
 
-    // Capture the video ID before making an asynchronous request.
-    // The selected video could change while the API is responding.
+    // Capture the original video before starting async work.
     const requestVideoId = videoId
 
     if (
@@ -109,9 +140,8 @@ export function ChatPanel({
 
     const question = (drafts[requestVideoId] ?? '').trim()
 
-    if (!question) return
+    if (!question || question.length > 500) return
 
-    // Save the current thread ID for this specific video.
     const threadId =
       sessions[requestVideoId]?.threadId ?? null
 
@@ -127,7 +157,6 @@ export function ChatPanel({
       [requestVideoId]: null,
     }))
 
-    // Clear only the selected video's composer.
     setDrafts((current) => ({
       ...current,
       [requestVideoId]: '',
@@ -139,61 +168,125 @@ export function ChatPanel({
       text: question,
     }
 
-    // Show the user's question immediately.
-    setSessions((current) => {
-      const previous = current[requestVideoId] ?? EMPTY_SESSION
-
-      return {
-        ...current,
-        [requestVideoId]: {
-          ...previous,
-          messages: [...previous.messages, userMessage],
-        },
-      }
-    })
+    updateSession(requestVideoId, (previous) => ({
+      ...previous,
+      messages: [...previous.messages, userMessage],
+    }))
 
     try {
-      // Our tested HTTP client handles validation and timeouts.
-      const response = await api.sendMessage({
-        video_id: requestVideoId,
-        message: question,
-        thread_id: threadId,
-        analysis_mode: 'auto',
-      })
+      if (stream) {
+        // Create one assistant message to update progressively.
+        const assistantId = createMessageId(requestVideoId)
 
-      // This check also protects clients used in testing.
-      if (response.video_id !== requestVideoId) {
-        throw new Error('Chat response video ID mismatch.')
-      }
-
-      const assistantMessage: ConversationMessage = {
-        id: createMessageId(requestVideoId),
-        role: 'assistant',
-        text: response.answer,
-        sources: response.sources,
-        insufficient_evidence:
-          response.insufficient_evidence,
-      }
-
-      // Store the answer under the ORIGINAL video ID.
-      // A late response must never appear in another video.
-      setSessions((current) => {
-        const previous =
-          current[requestVideoId] ?? EMPTY_SESSION
-
-        return {
-          ...current,
-          [requestVideoId]: {
-            messages: [
-              ...previous.messages,
-              assistantMessage,
-            ],
-            threadId: response.thread_id,
-          },
+        const assistantMessage: ConversationMessage = {
+          id: assistantId,
+          role: 'assistant',
+          text: '',
+          sources: [],
+          insufficient_evidence: false,
         }
-      })
+
+        updateSession(requestVideoId, (previous) => ({
+          ...previous,
+          messages: [...previous.messages, assistantMessage],
+        }))
+
+        // Keep a local copy because React state updates are async.
+        let streamedAnswer = ''
+        let receivedThreadId: string | null = null
+
+        await stream(
+          {
+            video_id: requestVideoId,
+            message: question,
+            thread_id: threadId,
+          },
+          {
+            onMeta(meta) {
+              if (meta.video_id !== requestVideoId) {
+                throw new Error(
+                  'Streaming response video ID mismatch.',
+                )
+              }
+
+              receivedThreadId = meta.thread_id
+            },
+
+            onToken(text) {
+              streamedAnswer += text
+
+              updateAssistantMessage(
+                requestVideoId,
+                assistantId,
+                { text: streamedAnswer },
+              )
+            },
+
+            onSources(sources) {
+              // Sources include the real transcript timestamps.
+              updateAssistantMessage(
+                requestVideoId,
+                assistantId,
+                { sources },
+              )
+            },
+
+            onDone(result) {
+              // The completion event is authoritative.
+              updateAssistantMessage(
+                requestVideoId,
+                assistantId,
+                {
+                  text: result.answer,
+                  insufficient_evidence:
+                    result.insufficient_evidence,
+                },
+              )
+
+              // Save the conversation thread for the next turn.
+              updateSession(requestVideoId, (previous) => ({
+                ...previous,
+                threadId:
+                  receivedThreadId ??
+                  result.thread_id,
+              }))
+            },
+          },
+        )
+      } else {
+        // Preserve the existing non-streaming API behavior.
+        const response = await api.sendMessage({
+          video_id: requestVideoId,
+          message: question,
+          thread_id: threadId,
+          analysis_mode: 'auto',
+        })
+
+        if (response.video_id !== requestVideoId) {
+          throw new Error(
+            'Chat response video ID mismatch.',
+          )
+        }
+
+        const assistantMessage: ConversationMessage = {
+          id: createMessageId(requestVideoId),
+          role: 'assistant',
+          text: response.answer,
+          sources: response.sources,
+          insufficient_evidence:
+            response.insufficient_evidence,
+        }
+
+        updateSession(requestVideoId, (previous) => ({
+          messages: [
+            ...previous.messages,
+            assistantMessage,
+          ],
+          threadId: response.thread_id,
+        }))
+      }
     } catch (caughtError) {
-      // Show an actual failure; do not generate a fake answer.
+      // Preserve visible partial text but report the failed stream.
       const message =
         caughtError instanceof Error
           ? caughtError.message
@@ -266,7 +359,9 @@ export function ChatPanel({
             className="vm-chat-loading"
             role="status"
           >
-            Retrieving evidence and preparing an answer…
+            {stream
+              ? 'Streaming answer from VideoMind AI…'
+              : 'Retrieving evidence and preparing an answer…'}
           </div>
         )}
       </div>
@@ -305,6 +400,7 @@ export function ChatPanel({
           id="vm-chat-question"
           rows={3}
           value={draft}
+          maxLength={500}
           onChange={(event) => {
             updateDraft(event.target.value)
           }}
@@ -325,7 +421,7 @@ export function ChatPanel({
             type="submit"
             disabled={!canSubmit}
           >
-            Send question
+            {isSending ? 'Answering…' : 'Send question'}
           </button>
         </div>
       </form>

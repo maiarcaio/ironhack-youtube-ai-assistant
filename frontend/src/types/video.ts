@@ -13,7 +13,8 @@ export interface Video {
   title: string
   thumbnail_url: string | null
   status: VideoStatus
-  created_at: string
+  // The authenticated list endpoint does not expose a timestamp yet.
+  created_at?: string
   error?: string | null
 }
 
