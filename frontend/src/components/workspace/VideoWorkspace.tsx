@@ -1,11 +1,16 @@
 
+import { forwardRef } from 'react'
 import type { ReactNode } from 'react'
+
+import { YouTubePlayer } from '../player/YouTubePlayer'
+import type { YouTubePlayerHandle } from '../player/YouTubePlayer'
 import type { Video } from '../../types/video'
 
 import './VideoWorkspace.css'
 
-// This component owns presentation, not API requests.
-// App.tsx remains responsible for video selection and polling.
+// The workspace owns layout and video presentation.
+// App.tsx remains responsible for selection, API calls,
+// conversation wiring, and timestamp navigation.
 interface VideoWorkspaceProps {
   video: Video | null
   pollingError?: string
@@ -14,13 +19,26 @@ interface VideoWorkspaceProps {
   children: ReactNode
 }
 
-export function VideoWorkspace({
-  video,
-  pollingError,
-  isMockMode,
-  onBack,
-  children,
-}: VideoWorkspaceProps) {
+/*
+ * forwardRef allows App.tsx to hold a reference to the
+ * YouTube player without exposing the player's internals.
+ *
+ * The workspace passes that reference directly to YouTubePlayer.
+ * No ref is read during React rendering.
+ */
+export const VideoWorkspace = forwardRef<
+  YouTubePlayerHandle,
+  VideoWorkspaceProps
+>(function VideoWorkspace(
+  {
+    video,
+    pollingError,
+    isMockMode,
+    onBack,
+    children,
+  },
+  ref,
+) {
   return (
     <section
       className="workspace-page vm-video-workspace"
@@ -41,10 +59,12 @@ export function VideoWorkspace({
       {!video ? (
         <div className="empty-library">
           <h1>No video selected</h1>
+
           <p>
             Choose a video from your library to open its
             workspace.
           </p>
+
           <button
             type="button"
             className="primary-button"
@@ -57,6 +77,7 @@ export function VideoWorkspace({
         <>
           <header className="vm-video-workspace-heading">
             <h1>{video.title}</h1>
+
             <p>
               Watch, explore, and ask questions about your
               selected video.
@@ -70,17 +91,26 @@ export function VideoWorkspace({
             >
               <div className="workspace-panel">
                 {/*
-                  This is still a placeholder, not a real player.
-                  The YouTube IFrame API is a separate milestone.
+                  The source URL identifies the actual
+                  YouTube video.
+
+                  The internal video.id is used only as a
+                  React key to reset the player when switching.
+
+                  The ref is forwarded to YouTubePlayer,
+                  whose public handle exposes seekTo().
                 */}
-                <div className="workspace-preview">
-                  <span aria-hidden="true">▶</span>
-                  <p>Video player coming soon</p>
-                </div>
+                <YouTubePlayer
+                  key={video.id}
+                  ref={ref}
+                  sourceUrl={video.source_url}
+                  title={video.title}
+                />
 
                 <div className="workspace-details">
                   <div className="workspace-status">
                     <strong>Processing status</strong>
+
                     <span
                       className={`status-pill status-${video.status}`}
                       role="status"
@@ -93,6 +123,10 @@ export function VideoWorkspace({
                     Video ID: <code>{video.id}</code>
                   </p>
 
+                  {/*
+                    Preserve the original URL because
+                    embedding may be restricted by YouTube.
+                  */}
                   <a
                     href={video.source_url}
                     target="_blank"
@@ -149,7 +183,9 @@ export function VideoWorkspace({
             >
               {/*
                 ChatPanel is supplied by App.tsx.
-                We don't duplicate chat state in this component.
+
+                The workspace doesn't need to know about
+                chat sessions or backend response formats.
               */}
               {children}
             </section>
@@ -158,4 +194,4 @@ export function VideoWorkspace({
       )}
     </section>
   )
-}
+})
