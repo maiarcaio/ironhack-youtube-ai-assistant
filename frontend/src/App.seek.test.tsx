@@ -6,6 +6,7 @@ import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
 import App from './App'
+import { NotesProvider } from './features/notes/NotesProvider'
 
 // Shared test state. vi.hoisted makes it available inside
 // Vitest's mocked modules before imports are evaluated.
@@ -119,9 +120,19 @@ afterEach(() => {
   cleanup()
 })
 
+function renderApp() {
+  return render(
+    <NotesProvider owner={{ kind: 'mock' }}>
+      <App />
+    </NotesProvider>,
+  )
+}
+
 // Use the real application's video submission form.
 async function addVideo(url: string) {
   const user = userEvent.setup()
+
+  await user.click(screen.getByRole('button', { name: 'Add video' }))
 
   const urlInput = screen.getByRole('textbox', {
     name: 'YouTube URL',
@@ -141,7 +152,7 @@ async function addVideo(url: string) {
 
 describe('App citation-to-player navigation', () => {
   it('seeks to the timestamp selected in chat', async () => {
-    render(<App />)
+    renderApp()
 
     const user = await addVideo(
       'https://youtu.be/jfKfPfyJRdk',
@@ -166,7 +177,7 @@ describe('App citation-to-player navigation', () => {
   })
 
   it('rejects invalid source timestamps', async () => {
-    render(<App />)
+    renderApp()
 
     const user = await addVideo(
       'https://youtu.be/jfKfPfyJRdk',
@@ -200,7 +211,7 @@ describe('App citation-to-player navigation', () => {
   })
 
   it('seeks only in the currently selected video', async () => {
-    render(<App />)
+    renderApp()
 
     const user = await addVideo(
       'https://youtu.be/jfKfPfyJRdk',

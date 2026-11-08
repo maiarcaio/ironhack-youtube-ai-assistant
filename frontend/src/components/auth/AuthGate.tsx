@@ -6,7 +6,8 @@ import { supabase } from '../../services/api/supabaseClient'
 
 import './AuthGate.css'
 
-const useMockApi = import.meta.env.VITE_USE_MOCK_API !== 'false'
+const useMockApi = import.meta.env.VITE_USE_MOCK_API === 'true'
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim()
 
 interface AuthGateProps {
   children: (session: Session | null) => ReactNode
@@ -25,7 +26,7 @@ export function AuthGate({ children }: AuthGateProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
-    if (useMockApi || !supabase) return
+    if (useMockApi || !supabase || !apiBaseUrl) return
 
     let active = true
 
@@ -50,14 +51,14 @@ export function AuthGate({ children }: AuthGateProps) {
 
   if (useMockApi) return <>{children(null)}</>
 
-  if (!supabase) {
+  if (!supabase || !apiBaseUrl) {
     return (
       <main className="auth-gate" aria-label="Authentication required">
         <section className="auth-card">
           <span className="section-kicker">VIDEOMIND AI</span>
-          <h1>Authentication is not configured</h1>
+          <h1>Backend mode is not configured</h1>
           <p>
-            Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY to use the authenticated backend.
+            Set VITE_API_BASE_URL, VITE_SUPABASE_URL, and VITE_SUPABASE_PUBLISHABLE_KEY to use the authenticated backend. Set VITE_USE_MOCK_API=true only for an explicit local demonstration.
           </p>
         </section>
       </main>

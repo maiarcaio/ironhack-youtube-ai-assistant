@@ -9,17 +9,22 @@ import {
   vi,
 } from 'vitest'
 
+import { createRef } from 'react'
+
 import {
   cleanup,
   render,
   screen,
+  waitFor,
 } from '@testing-library/react'
 
 import { YouTubePlayer } from './YouTubePlayer'
+import type { YouTubePlayerHandle } from './YouTubePlayer'
 
 afterEach(() => {
   cleanup()
   vi.restoreAllMocks()
+  delete window.YT
 })
 
 describe('YouTubePlayer', () => {
@@ -64,5 +69,37 @@ describe('YouTubePlayer', () => {
     expect(
       screen.getByText(/Loading YouTube player/i),
     ).toBeTruthy()
+  })
+
+  it('exposes playback time only after the player is ready', async () => {
+    const ref = createRef<YouTubePlayerHandle>()
+    const player = {
+      seekTo: vi.fn(),
+      destroy: vi.fn(),
+      getCurrentTime: vi.fn(() => 85.9),
+    }
+
+    window.YT = {
+      Player: function Player(_element, options) {
+        window.setTimeout(() => {
+          options.events?.onReady?.({ target: player })
+        }, 0)
+        return player
+      } as never,
+    }
+
+    render(
+      <YouTubePlayer
+        ref={ref}
+        sourceUrl="https://youtu.be/jfKfPfyJRdk"
+        title="Timestamped Video"
+      />,
+    )
+
+    expect(ref.current?.getCurrentTime()).toBeNull()
+
+    await waitFor(() => {
+      expect(ref.current?.getCurrentTime()).toBe(85.9)
+    })
   })
 })

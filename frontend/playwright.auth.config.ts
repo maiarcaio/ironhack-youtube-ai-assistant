@@ -7,12 +7,9 @@ export default defineConfig({
   use: {
     baseURL: 'http://127.0.0.1:4174',
     headless: true,
-    launchOptions: {
-      executablePath: '/Users/caiomaia/Library/Caches/ms-playwright/chromium-1248/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing',
-    },
   },
   webServer: {
-    command: 'VITE_USE_MOCK_API=false VITE_SUPABASE_URL=http://supabase.test VITE_SUPABASE_PUBLISHABLE_KEY=offline-public-key npm run dev -- --host 127.0.0.1 --port 4174',
+    command: 'VITE_USE_MOCK_API=false VITE_API_BASE_URL=http://localhost:8000 VITE_SUPABASE_URL=http://supabase.test VITE_SUPABASE_PUBLISHABLE_KEY=offline-public-key npm run dev -- --host 127.0.0.1 --port 4174',
     url: 'http://127.0.0.1:4174',
     reuseExistingServer: false,
   },

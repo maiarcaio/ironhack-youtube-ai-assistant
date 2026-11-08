@@ -3,11 +3,19 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { SubmitEvent } from 'react'
 import type { Session } from '@supabase/supabase-js'
 
-import { AppShell } from './components/layout/AppShell'
-import { VideoWorkspace } from './components/workspace/VideoWorkspace'
+import { VideoMindShell } from './components/layout/VideoMindShell'
+import type { Page } from './components/layout/VideoMindShell'
+import { SearchableTranscriptView, SettingsView } from './components/layout/SupplementalViews'
+import { VideoWorkspaceView } from './components/workspace/VideoWorkspaceView'
 import { TranscriptUploadPanel } from './components/workspace/TranscriptUploadPanel'
 import { ChatPanel } from './components/chat/ChatPanel'
-import { VideoCard } from './components/video/VideoCard'
+import { QAAssistantView } from './components/chat/QAAssistantView'
+import { AddVideoModal } from './components/video/AddVideoModal'
+import { VideoLibraryView } from './components/video/VideoLibraryView'
+import { SavedNotesView } from './components/notes/SavedNotesView'
+import { WorkspaceNotesPanel } from './components/notes/WorkspaceNotesPanel'
+import { useNotes } from './features/notes/notesContext'
+import type { VideoNote } from './features/notes/notesStorage'
 
 import type { YouTubePlayerHandle } from './components/player/YouTubePlayer'
 import { createHttpChatApi } from './services/api/httpChatApi'
@@ -20,18 +28,12 @@ import { extractYouTubeVideoId } from './utils/youtube'
 
 import './App.css'
 
-// Keep mock mode available for demonstrations and existing tests.
-const useMockApi = import.meta.env.VITE_USE_MOCK_API !== 'false'
+// Mock mode is opt-in so missing production configuration cannot simulate success.
+const useMockApi = import.meta.env.VITE_USE_MOCK_API === 'true'
 
 // Both the regular chat client and streaming client use this backend URL.
 const apiBaseUrl =
   import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
-
-// Application screens.
-type Page = 'library' | 'workspace'
-
-// Library filtering options.
-type LibraryFilter = 'all' | VideoStatus
 
 interface AppProps {
   // AuthGate remounts this component when the user changes, clearing user state.
@@ -64,9 +66,7 @@ function App({ session = null }: AppProps) {
 
   // Video submission and library search.
   const [videoUrl, setVideoUrl] = useState('')
-  const [searchQuery, setSearchQuery] = useState('')
-  const [filter, setFilter] =
-    useState<LibraryFilter>('all')
+  const [isAddVideoOpen, setIsAddVideoOpen] = useState(false)
 
   // Request and error states.
   const [isSubmitting, setIsSubmitting] =
@@ -86,6 +86,14 @@ function App({ session = null }: AppProps) {
    * than interacting directly with the player.
    */
   const playerRef = useRef<YouTubePlayerHandle>(null)
+  const pendingNoteSeekRef = useRef<{
+    requestId: number
+    ownerKey: string
+    videoId: string
+    seconds: number
+  } | null>(null)
+  const nextNoteSeekRequest = useRef(0)
+  const { storageKey: notesOwnerKey, notes } = useNotes()
 
   // Find the selected video in the current library.
   const selectedVideo =
@@ -101,7 +109,7 @@ function App({ session = null }: AppProps) {
    */
   function handleSeekToSource(seconds: number): void {
     if (
-      activePage !== 'workspace' ||
+      (activePage !== 'workspace' && activePage !== 'qa') ||
       !selectedVideo
     ) {
       return
@@ -117,38 +125,72 @@ function App({ session = null }: AppProps) {
     playerRef.current?.seekTo(seconds)
   }
 
-  // Calculate current library statistics.
-  const readyCount = videos.filter(
-    (video) => video.status === 'ready',
-  ).length
+  function handleOpenNote(note: VideoNote): void {
+    if (!notesOwnerKey) return
 
-  const processingCount = videos.filter(
-    (video) =>
-      video.status === 'queued' ||
-      video.status === 'processing',
-  ).length
+    const targetVideo = videos.find((video) => video.id === note.videoId)
+    if (!targetVideo) return
 
-  // Filter the library by search text and status.
-  const filteredVideos = videos.filter(
-    (video) => {
-      const searchText =
-        searchQuery.trim().toLowerCase()
+    nextNoteSeekRequest.current += 1
+    pendingNoteSeekRef.current = {
+      requestId: nextNoteSeekRequest.current,
+      ownerKey: notesOwnerKey,
+      videoId: note.videoId,
+      seconds: note.seconds,
+    }
 
-      const matchesSearch =
-        video.title
-          .toLowerCase()
-          .includes(searchText) ||
-        video.source_url
-          .toLowerCase()
-          .includes(searchText)
+    setSelectedVideoId(note.videoId)
+    setActivePage('workspace')
 
-      const matchesStatus =
-        filter === 'all' ||
-        video.status === filter
+    if (
+      selectedVideoId === note.videoId &&
+      playerRef.current?.seekTo(note.seconds)
+    ) {
+      pendingNoteSeekRef.current = null
+    }
+  }
 
-      return matchesSearch && matchesStatus
-    },
-  )
+  const handlePlayerReadyChange = useCallback((ready: boolean): void => {
+    if (!ready) return
+
+    const pending = pendingNoteSeekRef.current
+    if (
+      !pending ||
+      pending.ownerKey !== notesOwnerKey ||
+      pending.videoId !== selectedVideoId
+    ) {
+      return
+    }
+
+    if (playerRef.current?.seekTo(pending.seconds)) {
+      pendingNoteSeekRef.current = null
+    }
+  }, [notesOwnerKey, selectedVideoId])
+
+  const handlePlayerUnavailable = useCallback((): void => {
+    const pending = pendingNoteSeekRef.current
+    if (pending?.videoId === selectedVideoId) {
+      pendingNoteSeekRef.current = null
+    }
+  }, [selectedVideoId])
+
+  function getPlaybackTime(): number | null {
+    return playerRef.current?.getCurrentTime() ?? null
+  }
+
+  useEffect(() => {
+    const pending = pendingNoteSeekRef.current
+    if (pending && pending.ownerKey !== notesOwnerKey) {
+      pendingNoteSeekRef.current = null
+    }
+  }, [notesOwnerKey])
+
+  useEffect(() => {
+    const pending = pendingNoteSeekRef.current
+    if (pending && pending.videoId !== selectedVideoId) {
+      pendingNoteSeekRef.current = null
+    }
+  }, [selectedVideoId])
 
   // Build a stable list of videos awaiting status updates.
   const pendingVideoIds = videos
@@ -229,8 +271,7 @@ function App({ session = null }: AppProps) {
         await loadLibrary()
         setSelectedVideoId(response.video_id)
         setVideoUrl('')
-        setFilter('all')
-        setSearchQuery('')
+        setIsAddVideoOpen(false)
         return
       }
 
@@ -251,9 +292,8 @@ function App({ session = null }: AppProps) {
 
       setSelectedVideoId(newVideo.id)
       setVideoUrl('')
+      setIsAddVideoOpen(false)
 
-      setFilter('all')
-      setSearchQuery('')
       setActivePage('library')
     } catch (caughtError) {
       setSubmissionError(
@@ -270,6 +310,7 @@ function App({ session = null }: AppProps) {
   function handleSelectVideo(
     videoId: string,
   ): void {
+    pendingNoteSeekRef.current = null
     setSelectedVideoId(videoId)
     setActivePage('workspace')
   }
@@ -389,10 +430,40 @@ function App({ session = null }: AppProps) {
     }
   }, [activeVideoApi, pendingVideoIds])
 
+  const assistantPanel = (
+    <>
+      {!useMockApi && selectedVideo?.status === 'failed' && (
+        <TranscriptUploadPanel key={selectedVideo.id} videoId={selectedVideo.id} getAccessToken={getAccessToken} onUploaded={handleTranscriptUploaded} />
+      )}
+      <ChatPanel
+        videoId={selectedVideoId}
+        isReadyForChat={!useMockApi && selectedVideo?.status === 'ready'}
+        api={chatApi}
+        stream={!useMockApi ? (request, callbacks) => streamVideoQuestion(request, callbacks, undefined, getAccessToken) : undefined}
+        onSeek={handleSeekToSource}
+        presentation={activePage === 'qa' ? 'qa' : 'workspace'}
+      />
+    </>
+  )
+
+  const notesPanel = selectedVideo ? (
+    <WorkspaceNotesPanel
+      video={selectedVideo}
+      getPlaybackTime={getPlaybackTime}
+      onOpenAllNotes={() => setActivePage('notes')}
+      onSeek={handleSeekToSource}
+    />
+  ) : null
+
   return (
-    <AppShell
+    <VideoMindShell
       activePage={activePage}
       onNavigate={setActivePage}
+      onAddVideo={() => setIsAddVideoOpen(true)}
+      onSearch={() => {
+        setActivePage('library')
+        window.setTimeout(() => document.querySelector<HTMLInputElement>('.search-field input')?.focus(), 0)
+      }}
       onSignOut={
         !useMockApi && session
           ? () => { void supabase?.auth.signOut() }
@@ -400,300 +471,13 @@ function App({ session = null }: AppProps) {
       }
     >
       {activePage === 'library' && (
-        <div className="library-page">
-          <section className="library-hero">
-            <div className="hero-content">
-              <span className="eyebrow">
-                <span className="eyebrow-dot" />
-                YOUR AI LEARNING STUDIO
-              </span>
-
-              <h1>
-                Don&apos;t just watch.
-                <span>
-                  {' '}
-                  Understand everything.
-                </span>
-              </h1>
-
-              <p>
-                Turn YouTube videos into searchable
-                knowledge. Organize your library and
-                explore what you learn.
-              </p>
-
-              <a
-                className="hero-action"
-                href="#add-video"
-              >
-                <span aria-hidden="true">
-                  ＋
-                </span>
-                Add a YouTube video
-              </a>
-            </div>
-
-            <div className="hero-insight">
-              <span className="insight-label">
-                YOUR WORKSPACE
-              </span>
-
-              <strong>
-                {videos.length} videos collected
-              </strong>
-
-              <p>
-                Your knowledge library starts with
-                the videos you choose to explore.
-              </p>
-
-              <div className="insight-metrics">
-                <div>
-                  <strong>
-                    {readyCount}
-                  </strong>
-                  <span>Ready</span>
-                </div>
-
-                <div>
-                  <strong>
-                    {processingCount}
-                  </strong>
-                  <span>In progress</span>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <div className="library-columns">
-            <section
-              className="library-main"
-              aria-labelledby="library-heading"
-            >
-              <div className="section-heading">
-                <div>
-                  <span className="section-kicker">
-                    YOUR COLLECTION
-                  </span>
-
-                  <h2 id="library-heading">
-                    Your video library
-                    <span className="library-count">
-                      {videos.length}
-                    </span>
-                  </h2>
-                </div>
-              </div>
-
-              <label className="search-field">
-                <span
-                  className="search-symbol"
-                  aria-hidden="true"
-                >
-                  ⌕
-                </span>
-
-                <span className="sr-only">
-                  Search videos
-                </span>
-
-                <input
-                  type="search"
-                  value={searchQuery}
-                  onChange={(event) =>
-                    setSearchQuery(
-                      event.target.value,
-                    )
-                  }
-                  placeholder="Search titles or YouTube URLs..."
-                />
-              </label>
-
-              <div
-                className="filter-row"
-                aria-label="Filter videos"
-              >
-                {(
-                  [
-                    ['all', 'All'],
-                    ['ready', 'Ready'],
-                    ['queued', 'Queued'],
-                    ['processing', 'Processing'],
-                    ['failed', 'Failed'],
-                  ] as const
-                ).map(([value, label]) => (
-                  <button
-                    key={value}
-                    type="button"
-                    className={
-                      filter === value
-                        ? 'filter-chip active'
-                        : 'filter-chip'
-                    }
-                    aria-pressed={
-                      filter === value
-                    }
-                    onClick={() =>
-                      setFilter(value)
-                    }
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-
-              {filteredVideos.length > 0 ? (
-                <div className="video-library">
-                  {filteredVideos.map(
-                    (video) => (
-                      <VideoCard
-                        key={video.id}
-                        video={video}
-                        isSelected={
-                          video.id ===
-                          selectedVideoId
-                        }
-                        onSelect={
-                          handleSelectVideo
-                        }
-                      />
-                    ),
-                  )}
-                </div>
-              ) : (
-                <div className="empty-library">
-                  <div
-                    className="empty-icon"
-                    aria-hidden="true"
-                  >
-                    ▣
-                  </div>
-
-                  <h3>
-                    {videos.length === 0
-                      ? 'Your library starts here'
-                      : 'No matching videos'}
-                  </h3>
-
-                  <p>
-                    {videos.length === 0
-                      ? 'Add a YouTube video to begin building your learning library.'
-                      : 'Try changing your search or status filter.'}
-                  </p>
-
-                  {videos.length === 0 && (
-                    <a
-                      href="#add-video"
-                      className="text-link"
-                    >
-                      Add your first video
-                    </a>
-                  )}
-                </div>
-              )}
-            </section>
-
-            <aside className="library-side-panel">
-              <section
-                id="add-video"
-                className="panel-card"
-                aria-labelledby="add-video-heading"
-              >
-                <span className="section-kicker">
-                  GROW YOUR KNOWLEDGE
-                </span>
-
-                <h2 id="add-video-heading">
-                  Add a video
-                </h2>
-
-                <p>
-                  Paste a YouTube link to add it
-                  to your library.
-                </p>
-
-                <form
-                  className="add-video-form"
-                  onSubmit={handleSubmit}
-                >
-                  <label htmlFor="video-url">
-                    YouTube URL
-                  </label>
-
-                  <input
-                    id="video-url"
-                    type="url"
-                    value={videoUrl}
-                    onChange={(event) =>
-                      setVideoUrl(
-                        event.target.value,
-                      )
-                    }
-                    placeholder="https://www.youtube.com/watch?v=..."
-                    disabled={isSubmitting}
-                    required
-                  />
-
-                  <button
-                    type="submit"
-                    className="primary-button"
-                    disabled={isSubmitting}
-                  >
-                    {isSubmitting
-                      ? 'Adding video...'
-                      : '＋ Add to library'}
-                  </button>
-                </form>
-
-                {submissionError && (
-                  <p
-                    role="alert"
-                    className="error-message"
-                  >
-                    {submissionError}
-                  </p>
-                )}
-              </section>
-
-              <section className="panel-card learning-panel">
-                <span className="section-kicker">
-                  LIBRARY OVERVIEW
-                </span>
-
-                <h2>
-                  Learning progress
-                </h2>
-
-                <div className="overview-item">
-                  <span>
-                    Total videos
-                  </span>
-                  <strong>
-                    {videos.length}
-                  </strong>
-                </div>
-
-                <div className="overview-item">
-                  <span>
-                    Ready to explore
-                  </span>
-                  <strong>
-                    {readyCount}
-                  </strong>
-                </div>
-
-                <div className="overview-item">
-                  <span>
-                    Processing
-                  </span>
-                  <strong>
-                    {processingCount}
-                  </strong>
-                </div>
-              </section>
-            </aside>
-          </div>
-        </div>
+        <VideoLibraryView
+          videos={videos}
+          selectedVideoId={selectedVideoId}
+          isMockMode={useMockApi}
+          onSelectVideo={handleSelectVideo}
+          onOpenAddVideo={() => setIsAddVideoOpen(true)}
+        />
       )}
 
       {/*
@@ -705,13 +489,26 @@ function App({ session = null }: AppProps) {
       */}
       <div
         className="vm-workspace-mounted"
-        hidden={
-          activePage !== 'workspace'
-        }
+        hidden={activePage !== 'workspace' && activePage !== 'qa'}
       >
-        <VideoWorkspace
+        {activePage === 'qa' ? (
+          <QAAssistantView
+            ref={playerRef}
+            video={selectedVideo}
+            isMockMode={useMockApi}
+            onBack={() => setActivePage('library')}
+            onTranscript={() => setActivePage('transcript')}
+          >
+            {assistantPanel}
+          </QAAssistantView>
+        ) : (
+        <VideoWorkspaceView
           ref={playerRef}
           video={selectedVideo}
+          notesCount={selectedVideo
+            ? notes.filter((note) => note.videoId === selectedVideo.id).length
+            : 0}
+          notesPanel={notesPanel}
           pollingError={
             selectedVideo
               ? pollingErrors[
@@ -720,65 +517,45 @@ function App({ session = null }: AppProps) {
               : undefined
           }
           isMockMode={useMockApi}
-          onBack={() =>
-            setActivePage('library')
-          }
+          onPlayerReadyChange={handlePlayerReadyChange}
+          onPlayerUnavailable={handlePlayerUnavailable}
+          onOpenAssistant={() => setActivePage('qa')}
+          onBack={() => setActivePage('library')}
         >
-          {/*
-            In backend mode, manually upload the transcript
-            until automatic ingestion becomes available.
-          */}
-          {!useMockApi &&
-            selectedVideo &&
-            selectedVideo.status === 'failed' && (
-              <TranscriptUploadPanel
-                key={selectedVideo.id}
-                videoId={
-                  selectedVideo.id
-                }
-                getAccessToken={getAccessToken}
-                onUploaded={
-                  handleTranscriptUploaded
-                }
-              />
-            )}
-
-          {/*
-            Streaming uses the real backend's SSE endpoint.
-
-            Mock mode retains the existing non-streaming
-            adapter for compatibility with current tests.
-          */}
-          <ChatPanel
-            videoId={selectedVideoId}
-            isReadyForChat={
-              !useMockApi &&
-              selectedVideo?.status === 'ready'
-            }
-            api={chatApi}
-            stream={
-              !useMockApi
-                ? (request, callbacks) =>
-                    streamVideoQuestion(
-                      request,
-                      callbacks,
-                      undefined,
-                      getAccessToken,
-                    )
-                : undefined
-            }
-            onSeek={
-              handleSeekToSource
-            }
-          />
-        </VideoWorkspace>
+          {assistantPanel}
+        </VideoWorkspaceView>
+        )}
       </div>
+      {activePage === 'transcript' && (
+        <SearchableTranscriptView
+          videos={videos}
+          selectedVideo={selectedVideo}
+          onNavigate={setActivePage}
+        />
+      )}
+      {activePage === 'notes' && (
+        <SavedNotesView
+          videos={videos}
+          onOpenNote={handleOpenNote}
+        />
+      )}
+      {activePage === 'settings' && <SettingsView videos={videos} isMockMode={useMockApi} />}
       {libraryError && (
         <p className="error-message" role="alert">
           {libraryError}
         </p>
       )}
-    </AppShell>
+      <AddVideoModal
+        isOpen={isAddVideoOpen}
+        videoUrl={videoUrl}
+        isSubmitting={isSubmitting}
+        isMockMode={useMockApi}
+        error={submissionError}
+        onClose={() => { setIsAddVideoOpen(false); setSubmissionError(null) }}
+        onVideoUrlChange={setVideoUrl}
+        onSubmit={handleSubmit}
+      />
+    </VideoMindShell>
   )
 }
 

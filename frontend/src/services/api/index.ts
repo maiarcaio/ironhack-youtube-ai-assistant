@@ -3,8 +3,8 @@ import type { VideoApi } from './VideoApi'
 import { mockVideoApi } from './mockVideoApi'
 import { createHttpVideoApi } from './httpVideoApi'
 
-// The mock remains the default until Diogo's API is ready.
-const useMockApi = import.meta.env.VITE_USE_MOCK_API !== 'false'
+// Demo data is available only through explicit configuration.
+const useMockApi = import.meta.env.VITE_USE_MOCK_API === 'true'
 
 // The backend URL is supplied through Vite environment variables.
 const apiBaseUrl =

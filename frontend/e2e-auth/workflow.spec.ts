@@ -89,6 +89,7 @@ test.describe('VideoMind authenticated browser workflow — simulated', () => {
     await signIn(page)
     await expect(page.getByRole('button', { name: 'Backend lecture' })).toBeVisible()
 
+    await page.getByRole('button', { name: 'Add video' }).click()
     await page.getByLabel('YouTube URL').fill(VIDEO_URL)
     await page.getByRole('button', { name: /Add to library/i }).click()
     expect(ingestAuthorization).toBe(`Bearer ${TOKEN_A}`)

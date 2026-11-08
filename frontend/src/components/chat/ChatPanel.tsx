@@ -26,6 +26,7 @@ interface ChatPanelProps {
   api: ChatApi
   stream?: typeof streamVideoQuestion
   onSeek?: (seconds: number) => void
+  presentation?: 'workspace' | 'qa'
 }
 
 const EMPTY_SESSION: ChatSession = {
@@ -39,6 +40,7 @@ export function ChatPanel({
   api,
   stream,
   onSeek,
+  presentation = 'workspace',
 }: ChatPanelProps) {
   // Store data independently for each selected video.
   const [sessions, setSessions] = useState<
@@ -66,6 +68,10 @@ export function ChatPanel({
   const draft = drafts[activeId] ?? ''
   const isSending = sendingByVideo[activeId] === true
   const error = errors[activeId] ?? null
+  const latestSources = ([...session.messages]
+    .reverse()
+    .find((message): message is Extract<ConversationMessage, { role: 'assistant' }> => message.role === 'assistant' && Boolean(message.sources?.length))
+    ?.sources ?? []).filter((source): source is ChatSource & { start_seconds: number } => source.start_seconds !== null)
 
   const canSubmit =
     Boolean(videoId) &&
@@ -308,7 +314,7 @@ export function ChatPanel({
 
   return (
     <section
-      className="vm-chat-panel"
+      className={`vm-chat-panel ${presentation === 'qa' ? 'vm-chat-panel-qa' : ''}`}
       aria-label="Video Q&A"
     >
       <header className="vm-chat-panel-header">
@@ -325,6 +331,15 @@ export function ChatPanel({
           </p>
         </div>
       </header>
+
+      {presentation === 'qa' && (
+        <section className="vm-chat-referenced" aria-label="Referenced moments">
+          <div className="vm-chat-referenced-heading"><h3>Referenced moments</h3><span>{latestSources.length} citations found</span></div>
+          {latestSources.length > 0 ? latestSources.map((source) => (
+            <button key={source.chunk_id} type="button" onClick={() => onSeek?.(source.start_seconds)} className="vm-chat-reference-card" aria-label={`Jump to ${Math.floor(source.start_seconds / 60).toString().padStart(2, '0')}:${Math.floor(source.start_seconds % 60).toString().padStart(2, '0')} in video`}><strong>{Math.floor(source.start_seconds / 60).toString().padStart(2, '0')}:{Math.floor(source.start_seconds % 60).toString().padStart(2, '0')}</strong><span>{source.excerpt}</span></button>
+          )) : <div className="vm-chat-reference-empty">Cited moments will appear here after the backend returns transcript evidence.</div>}
+        </section>
+      )}
 
       <div
         className="vm-chat-panel-conversation"

@@ -15,6 +15,7 @@ import './YouTubePlayer.css'
 // This keeps the integration typed without a new dependency.
 interface YTPlayerInstance {
   seekTo(seconds: number, allowSeekAhead: boolean): void
+  getCurrentTime(): number
   destroy(): void
 }
 
@@ -124,19 +125,21 @@ function loadYouTubePlayerApi(): Promise<YTNamespace> {
 // Other components do not receive the raw YouTube player.
 export interface YouTubePlayerHandle {
   seekTo(seconds: number): boolean
+  getCurrentTime(): number | null
 }
 
 interface YouTubePlayerProps {
   sourceUrl: string
   title: string
   onReadyChange?: (ready: boolean) => void
+  onUnavailable?: () => void
 }
 
 export const YouTubePlayer = forwardRef<
   YouTubePlayerHandle,
   YouTubePlayerProps
 >(function YouTubePlayer(
-  { sourceUrl, title, onReadyChange },
+  { sourceUrl, title, onReadyChange, onUnavailable },
   ref,
 ) {
   // Convert the source URL into a validated YouTube video ID.
@@ -170,6 +173,15 @@ export const YouTubePlayer = forwardRef<
         playerRef.current.seekTo(seconds, true)
         return true
       },
+      getCurrentTime(): number | null {
+        if (!playerRef.current) return null
+
+        const seconds = playerRef.current.getCurrentTime()
+
+        return Number.isFinite(seconds) && seconds >= 0
+          ? seconds
+          : null
+      },
     }),
     [],
   )
@@ -187,6 +199,7 @@ export const YouTubePlayer = forwardRef<
 
     // An invalid URL must never initialize a YouTube player.
     if (!container || !videoId) {
+      onUnavailable?.()
       return
     }
 
@@ -233,6 +246,7 @@ export const YouTubePlayer = forwardRef<
               playerRef.current = null
               setIsReady(false)
               onReadyChange?.(false)
+              onUnavailable?.()
 
               const blocked = [
                 100,
@@ -255,6 +269,7 @@ export const YouTubePlayer = forwardRef<
         playerRef.current = null
         setIsReady(false)
         onReadyChange?.(false)
+        onUnavailable?.()
 
         setError(
           caughtError instanceof Error
@@ -280,7 +295,7 @@ export const YouTubePlayer = forwardRef<
       // Remove only elements controlled by YouTube.
       container.replaceChildren()
     }
-  }, [videoId, onReadyChange])
+  }, [videoId, onReadyChange, onUnavailable])
 
   // Render a safe fallback for invalid source URLs.
   if (!videoId) {

@@ -18,6 +18,17 @@
   overflow: hidden;
 }
 
+.vm-chat-panel-qa { min-height: 680px; border-radius: 16px; }
+.vm-chat-referenced { padding: 1rem 1.5rem; border-bottom: 1px solid #ede7e1; background: #fff; }
+.vm-chat-referenced-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: .75rem; }
+.vm-chat-referenced-heading h3 { margin: 0; font-size: .95rem; }
+.vm-chat-referenced-heading span { padding: .25rem .65rem; border-radius: 999px; background: #f1edea; color: #615e5c; font-size: .7rem; font-weight: 650; }
+.vm-chat-reference-card { display: flex; width: 100%; gap: .75rem; align-items: flex-start; padding: .75rem; margin-top: .5rem; border: 1px solid #ede7e1; border-radius: 12px; background: #f7f3f0; text-align: left; }
+.vm-chat-reference-card:hover { background: #ffdbd266; border-color: #9a442d4d; }
+.vm-chat-reference-card strong { color: #9a442d; font-family: monospace; font-size: .75rem; }
+.vm-chat-reference-card span { color: #55423e; font-size: .75rem; line-height: 1.45; }
+.vm-chat-reference-empty { padding: 1rem; border: 1px dashed #dbc1ba; border-radius: 12px; color: #88726d; font-size: .75rem; text-align: center; }
+
 .vm-chat-panel-header {
   padding: 1.5rem;
   border-bottom: 1px solid #ede7e1;

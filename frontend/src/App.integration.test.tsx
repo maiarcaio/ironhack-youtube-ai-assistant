@@ -19,6 +19,7 @@ import {
 import userEvent from '@testing-library/user-event'
 
 import App from './App'
+import { NotesProvider } from './features/notes/NotesProvider'
 
 // Replace API calls with controlled responses.
 // These tests do not contact the real FastAPI backend.
@@ -47,9 +48,19 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
+function renderApp() {
+  return render(
+    <NotesProvider owner={{ kind: 'mock' }}>
+      <App />
+    </NotesProvider>,
+  )
+}
+
 // Add a video using the same form as a real user.
 async function addTestVideo() {
   const user = userEvent.setup()
+
+  await user.click(screen.getByRole('button', { name: 'Add video' }))
 
   await user.type(
     screen.getByRole('textbox', {
@@ -74,7 +85,7 @@ async function addTestVideo() {
 
 describe('VideoMind workspace integration', () => {
   it('preserves navigation between library and workspace', async () => {
-    render(<App />)
+    renderApp()
 
     const user = await addTestVideo()
 
@@ -129,7 +140,7 @@ describe('VideoMind workspace integration', () => {
   })
 
   it('does not enable real chat for a mock video', async () => {
-    render(<App />)
+    renderApp()
 
     const user = await addTestVideo()
 
