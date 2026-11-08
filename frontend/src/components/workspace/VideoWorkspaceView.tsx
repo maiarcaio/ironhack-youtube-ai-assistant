@@ -74,9 +74,10 @@ export const VideoWorkspaceView = forwardRef<
                 <div className="flex items-center justify-between"><h2 className="text-sm font-bold">Processing &amp; source</h2><span className="text-[10px] font-mono text-[#88726d]">UUID</span></div>
                 <code className="block mt-3 text-[11px] break-all text-[#615e5c] bg-[#f7f3f0] p-3 rounded-xl">{video.id}</code>
                 <a href={video.source_url} target="_blank" rel="noopener noreferrer" className="inline-block mt-3 text-xs font-semibold text-[#9a442d] underline">Open original YouTube video ↗</a>
-                {(video.status === 'queued' || video.status === 'processing') && <p className="mt-3 text-xs text-[#615e5c] leading-relaxed">Indexing is in progress. Grounded chat unlocks only after completion.</p>}
+                {video.status === 'queued' && <p className="mt-3 text-xs text-[#615e5c] leading-relaxed">Waiting for automatic processing to begin. Grounded chat remains locked.</p>}
+                {video.status === 'processing' && <p className="mt-3 text-xs text-[#615e5c] leading-relaxed">Automatic processing is in progress. Grounded chat unlocks only after completion.</p>}
                 {video.status === 'ready' && <p className="mt-3 text-xs text-[#2d685b]">{isMockMode ? 'This video is ready in demonstration mode. It has not been verified as indexed by the real RAG backend.' : 'Backend indexing is complete.'}</p>}
-                {video.status === 'failed' && <p role="alert" className="mt-3 text-xs text-[#93000a]">{video.error ?? 'Video processing failed.'}</p>}
+                {video.status === 'failed' && <p role="alert" className="mt-3 text-xs text-[#93000a]">Automatic processing failed. {video.error ?? 'The backend did not provide a specific reason.'}</p>}
                 {pollingError && <p role="alert" className="mt-3 text-xs text-[#93000a]">Status check unavailable: {pollingError}</p>}
               </section>
               <section className="p-5 rounded-2xl bg-white shadow-xs border border-[#ede7e1]">

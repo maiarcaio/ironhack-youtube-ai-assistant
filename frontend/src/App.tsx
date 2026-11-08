@@ -78,6 +78,9 @@ function App({ session = null }: AppProps) {
   const [pollingErrors, setPollingErrors] =
     useState<Record<string, string>>({})
   const [libraryError, setLibraryError] = useState<string | null>(null)
+  const libraryRequestRef = useRef(0)
+  const sessionUserIdRef = useRef(session?.user.id ?? null)
+  sessionUserIdRef.current = session?.user.id ?? null
 
   /**
    * Keep the YouTube player's public reference.
@@ -223,11 +226,69 @@ function App({ session = null }: AppProps) {
   }
 
   const loadLibrary = useCallback(async (): Promise<void> => {
+    const requestId = ++libraryRequestRef.current
+    const sessionUserId = sessionUserIdRef.current
+
+    function isCurrentRequest(): boolean {
+      return (
+        libraryRequestRef.current === requestId &&
+        sessionUserIdRef.current === sessionUserId
+      )
+    }
+
     try {
       const response = await activeVideoApi.listVideos()
-      setVideos(response.videos.map(toVideo).filter((video): video is Video => video !== null))
+      if (!isCurrentRequest()) return
+
+      const loadedVideos = response.videos
+        .map(toVideo)
+        .filter((video): video is Video => video !== null)
+
+      setVideos(loadedVideos)
       setLibraryError(null)
+
+      const failedVideos = loadedVideos.filter(
+        (video) => video.status === 'failed',
+      )
+      if (failedVideos.length === 0) return
+
+      const statusResults = await Promise.all(
+        failedVideos.map(async (video) => {
+          try {
+            const status = await activeVideoApi.getVideoStatus(video.id)
+            return status.video_id === video.id
+              ? [video.id, status] as const
+              : null
+          } catch {
+            return null
+          }
+        }),
+      )
+      if (!isCurrentRequest()) return
+
+      const statuses = new Map(
+        statusResults.filter(
+          (result): result is NonNullable<typeof result> => result !== null,
+        ),
+      )
+
+      setVideos((current) => current.map((video) => {
+        const status = statuses.get(video.id)
+
+        // A transcript upload or a newer poll may already have advanced
+        // this record while the failure detail request was in flight.
+        if (!status || video.status !== 'failed') return video
+
+        return {
+          ...video,
+          status: status.status,
+          title: status.title ?? video.title,
+          thumbnail_url: status.thumbnail_url ?? video.thumbnail_url,
+          error: status.status === 'failed' ? status.error : null,
+        }
+      }))
     } catch (caughtError) {
+      if (!isCurrentRequest()) return
       setLibraryError(caughtError instanceof Error ? caughtError.message : 'Unable to load your video library.')
     }
   }, [activeVideoApi])
@@ -235,6 +296,10 @@ function App({ session = null }: AppProps) {
   // Persistent videos belong to the authenticated user, not this browser session.
   useEffect(() => {
     if (!useMockApi && session) void loadLibrary()
+
+    return () => {
+      libraryRequestRef.current += 1
+    }
   }, [loadLibrary, session])
 
   /**
@@ -433,7 +498,13 @@ function App({ session = null }: AppProps) {
   const assistantPanel = (
     <>
       {!useMockApi && selectedVideo?.status === 'failed' && (
-        <TranscriptUploadPanel key={selectedVideo.id} videoId={selectedVideo.id} getAccessToken={getAccessToken} onUploaded={handleTranscriptUploaded} />
+        <TranscriptUploadPanel
+          key={selectedVideo.id}
+          videoId={selectedVideo.id}
+          serverError={selectedVideo.error}
+          getAccessToken={getAccessToken}
+          onUploaded={handleTranscriptUploaded}
+        />
       )}
       <ChatPanel
         videoId={selectedVideoId}

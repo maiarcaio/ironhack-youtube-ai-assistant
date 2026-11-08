@@ -32,6 +32,72 @@ async function signIn(page: Page, email = 'a@example.test') {
 }
 
 test.describe('VideoMind authenticated browser workflow — simulated', () => {
+  test('restores a persisted failure reason without polling completed videos', async ({ page }) => {
+    const failedUuid = '33333333-3333-4333-8333-333333333333'
+    const readyUuid = '44444444-4444-4444-8444-444444444444'
+    const statusRequests: string[] = []
+
+    await page.route('http://supabase.test/auth/v1/token**', async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(sessionResponse('a@example.test', TOKEN_A)) })
+    })
+    await page.route(`${API}/api/v1/videos`, async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ videos: [
+        { video_id: failedUuid, title: 'Persisted failed lecture', status: 'failed', source_url: VIDEO_URL },
+        { video_id: readyUuid, title: 'Completed lecture', status: 'completed', source_url: VIDEO_URL },
+      ] }) })
+    })
+    await page.route(`${API}/api/v1/videos/*/status`, async (route) => {
+      const requestedUuid = route.request().url().split('/').at(-2) ?? ''
+      statusRequests.push(requestedUuid)
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
+        video_id: requestedUuid,
+        status: 'failed',
+        error: 'Could not process YouTube captions. Upload a TXT, SRT or VTT transcript instead.',
+      }) })
+    })
+
+    await page.goto('/')
+    await signIn(page)
+    await expect(page.getByText('Processing failed — recovery available')).toBeVisible()
+    await page.getByRole('button', { name: 'Persisted failed lecture' }).click()
+
+    await expect(page.getByText('Could not process YouTube captions. Upload a TXT, SRT or VTT transcript instead.', { exact: true })).toBeVisible()
+    await page.getByRole('button', { name: 'Open Q&A' }).click()
+    await expect(page.getByText('Automatic processing failed — recovery available')).toBeVisible()
+    await expect(page.getByText('Waiting for indexing')).toHaveCount(0)
+    expect(statusRequests).toEqual([failedUuid])
+
+    await page.reload()
+    await expect(page.getByRole('button', { name: 'Persisted failed lecture' })).toBeVisible()
+    await page.getByRole('button', { name: 'Persisted failed lecture' }).click()
+    await expect(page.getByText('Could not process YouTube captions. Upload a TXT, SRT or VTT transcript instead.', { exact: true })).toBeVisible()
+    expect(statusRequests).toEqual([failedUuid, failedUuid])
+  })
+
+  test('keeps a failed video recoverable when its error detail cannot be refreshed', async ({ page }) => {
+    const failedUuid = '55555555-5555-4555-8555-555555555555'
+
+    await page.route('http://supabase.test/auth/v1/token**', async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(sessionResponse('a@example.test', TOKEN_A)) })
+    })
+    await page.route(`${API}/api/v1/videos`, async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ videos: [
+        { video_id: failedUuid, title: 'Failure detail unavailable', status: 'failed', source_url: VIDEO_URL },
+      ] }) })
+    })
+    await page.route(`${API}/api/v1/videos/${failedUuid}/status`, async (route) => {
+      await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ detail: 'Status service unavailable.' }) })
+    })
+
+    await page.goto('/')
+    await signIn(page)
+    await page.getByRole('button', { name: 'Failure detail unavailable' }).click()
+
+    await expect(page.getByText('failed', { exact: true })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Upload transcript' })).toBeVisible()
+    await expect(page.getByText('Video processing failed. The backend did not provide a specific reason.', { exact: true })).toBeVisible()
+  })
+
   test('loads UUID records, ingests a URL, reaches Ready, streams citations, and seeks', async ({ page }) => {
     let library = [{
       video_id: UUID,
@@ -116,13 +182,28 @@ test.describe('VideoMind authenticated browser workflow — simulated', () => {
     let status = 'processing'
     let uploadHeaders = ''
     let uploadBody = ''
+    let uploadAttempts = 0
+    let postUploadStatusCalls = 0
 
     await page.route('http://supabase.test/auth/v1/token**', async (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(sessionResponse('a@example.test', TOKEN_A)) }))
     await page.route(`${API}/api/v1/videos`, async (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ videos: [{ video_id: failedUuid, title: 'Failed lecture', status, source_url: VIDEO_URL }] }) }))
-    await page.route(`${API}/api/v1/videos/${failedUuid}/status`, async (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ video_id: failedUuid, status, error: status === 'failed' ? 'Captions unavailable.' : null }) }))
+    await page.route(`${API}/api/v1/videos/${failedUuid}/status`, async (route) => {
+      if (uploadAttempts > 1 && status === 'processing') {
+        postUploadStatusCalls += 1
+        if (postUploadStatusCalls >= 2) status = 'completed'
+      }
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ video_id: failedUuid, status, error: status === 'failed' ? 'Captions unavailable.' : null }) })
+    })
     await page.route(`${API}/api/v1/transcripts/upload`, async (route) => {
+      uploadAttempts += 1
       uploadHeaders = route.request().headers().authorization ?? ''
       uploadBody = route.request().postData() ?? ''
+
+      if (uploadAttempts === 1) {
+        await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ detail: 'Transcript indexing is temporarily unavailable.' }) })
+        return
+      }
+
       status = 'processing'
       await route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify({ video_id: failedUuid, status: 'completed', chunks_count: 2 }) })
     })
@@ -134,12 +215,23 @@ test.describe('VideoMind authenticated browser workflow — simulated', () => {
 
     status = 'failed'
     await expect(page.getByRole('heading', { name: 'Upload transcript' })).toBeVisible({ timeout: 5_000 })
+    await page.setViewportSize({ width: 390, height: 844 })
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
     await page.getByLabel('Transcript file').setInputFiles({ name: 'fallback.srt', mimeType: 'text/plain', buffer: Buffer.from('1\n00:01:25,000 --> 00:01:30,000\nEvidence') })
     await page.getByRole('button', { name: 'Upload transcript' }).click()
     await expect.poll(() => uploadHeaders).toBe(`Bearer ${TOKEN_A}`)
     expect(uploadBody).toContain(`name="video_id"\r\n\r\n${failedUuid}`)
     expect(uploadBody).toContain('filename="fallback.srt"')
+    await expect(page.getByText('Transcript indexing is temporarily unavailable.')).toBeVisible()
+    await expect(page.getByText('failed', { exact: true })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Send question' })).toBeDisabled()
+
+    await page.getByRole('button', { name: 'Upload transcript' }).click()
+    await expect(page.getByRole('heading', { name: 'Upload transcript' })).toHaveCount(0)
+    await expect(page.getByText('ready', { exact: true })).toBeVisible({ timeout: 5_000 })
+    await expect(page.getByLabel('Your question')).toBeEnabled()
+    await expect(page.getByText(/Chat is unavailable/i)).toHaveCount(0)
+    expect(uploadAttempts).toBe(2)
   })
 
   test('clears the previous library when a different user signs in', async ({ page }) => {

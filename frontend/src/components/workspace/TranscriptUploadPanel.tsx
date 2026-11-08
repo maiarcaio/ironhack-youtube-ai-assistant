@@ -1,11 +1,29 @@
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { SubmitEvent } from 'react'
 
 import {
   uploadTranscript,
 } from '../../services/api/videomindBackend'
 import type { AccessTokenProvider } from '../../services/api/videomindBackend'
+
+import './TranscriptUploadPanel.css'
+
+const MAX_FILE_SIZE = 2 * 1024 * 1024
+const ALLOWED_EXTENSIONS = ['.txt', '.srt', '.vtt']
+
+function validateSelectedFile(file: File): string | null {
+  const filename = file.name.toLowerCase()
+
+  if (!ALLOWED_EXTENSIONS.some((extension) => filename.endsWith(extension))) {
+    return 'Choose a TXT, SRT, or VTT transcript.'
+  }
+
+  if (file.size === 0) return 'The transcript file is empty.'
+  if (file.size > MAX_FILE_SIZE) return 'The maximum file size is 2 MB.'
+
+  return null
+}
 
 // Information returned when the backend finishes indexing.
 interface TranscriptUploadSuccess {
@@ -16,12 +34,14 @@ interface TranscriptUploadSuccess {
 // Props provided by the parent video workspace.
 interface TranscriptUploadPanelProps {
   videoId: string
+  serverError?: string | null
   getAccessToken: AccessTokenProvider
   onUploaded: (result: TranscriptUploadSuccess) => void
 }
 
 export function TranscriptUploadPanel({
   videoId,
+  serverError,
   getAccessToken,
   onUploaded,
 }: TranscriptUploadPanelProps) {
@@ -31,6 +51,7 @@ export function TranscriptUploadPanel({
   // Track the upload operation and any errors.
   const [isUploading, setIsUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const uploadingRef = useRef(false)
 
   // Prevent duplicate uploads before React updates the button.
   async function handleSubmit(
@@ -38,8 +59,9 @@ export function TranscriptUploadPanel({
   ) {
     event.preventDefault()
 
-    if (!file || isUploading) return
+    if (!file || uploadingRef.current) return
 
+    uploadingRef.current = true
     setIsUploading(true)
     setError(null)
 
@@ -68,6 +90,7 @@ export function TranscriptUploadPanel({
           : 'Unable to upload the transcript.',
       )
     } finally {
+      uploadingRef.current = false
       setIsUploading(false)
     }
   }
@@ -77,15 +100,21 @@ export function TranscriptUploadPanel({
       className="vm-transcript-upload"
       aria-label="Transcript upload"
     >
-      <span className="section-kicker">
-        VIDEO KNOWLEDGE
-      </span>
+      <div className="vm-transcript-upload__heading">
+        <span className="vm-transcript-upload__icon" aria-hidden="true">!</span>
+        <div>
+          <span className="section-kicker">RECOVERY AVAILABLE</span>
+          <h2>Upload transcript</h2>
+        </div>
+      </div>
 
-      <h2>Upload transcript</h2>
+      <p className="vm-transcript-upload__summary">
+        Automatic processing failed. Manual upload is a last-resort alternative
+        after caption and transcription processing could not complete.
+      </p>
 
-      <p>
-        Automatic processing did not complete. Upload a transcript
-        to recover this video and make it searchable.
+      <p className="vm-transcript-upload__server-error" role="alert">
+        {serverError ?? 'Video processing failed. The backend did not provide a specific reason.'}
       </p>
 
       <form onSubmit={handleSubmit}>
@@ -100,10 +129,19 @@ export function TranscriptUploadPanel({
           accept=".txt,.srt,.vtt"
           disabled={isUploading}
           onChange={(event) => {
-            setFile(event.target.files?.[0] ?? null)
-            setError(null)
+            const selectedFile = event.target.files?.[0] ?? null
+            const validationError = selectedFile
+              ? validateSelectedFile(selectedFile)
+              : null
+
+            setFile(validationError ? null : selectedFile)
+            setError(validationError)
           }}
         />
+
+        <p className="vm-transcript-upload__filename" aria-live="polite">
+          {file ? `Selected: ${file.name}` : 'No transcript selected'}
+        </p>
 
         <p className="vm-workspace-information">
           Supported formats: TXT, SRT and VTT.
@@ -122,7 +160,7 @@ export function TranscriptUploadPanel({
       </form>
 
       {isUploading && (
-        <p role="status">
+        <p role="status" className="vm-transcript-upload__progress">
           Processing transcript and generating embeddings...
         </p>
       )}
