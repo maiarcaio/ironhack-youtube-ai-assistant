@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import chat, transcripts, videos
+from app.api import audio, chat, transcripts, videos
 from app.services.ingestion.worker import process_next_job
 
 
@@ -95,7 +95,7 @@ app.add_middleware(
 app.include_router(chat.router)
 app.include_router(videos.router)
 app.include_router(transcripts.router)
-
+app.include_router(audio.router)
 
 @app.get("/")
 def read_root():
