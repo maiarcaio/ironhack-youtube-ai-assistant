@@ -1,0 +1,86 @@
+
+/*
+ * VideoMind AI — Chat message styling.
+ *
+ * All selectors begin with vm-chat to prevent
+ * unintended changes to the existing dashboard.
+ */
+
+.vm-chat-message {
+  max-width: 100%;
+  padding: 1.15rem;
+  border-radius: 18px;
+}
+
+.vm-chat-message--user {
+  width: fit-content;
+  max-width: 85%;
+  margin-left: auto;
+  background: #eee8e3;
+  color: #282625;
+}
+
+.vm-chat-message--assistant {
+  width: 100%;
+  background: #fffdfa;
+  border: 1px solid #ede7e1;
+  color: #282625;
+}
+
+.vm-chat-message-header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.vm-chat-message-author {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.vm-chat-evidence-warning {
+  padding: 0.3rem 0.6rem;
+  border-radius: 999px;
+  background: #fff0e9;
+  color: #9a442d;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.vm-chat-message-body {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 0.9rem;
+  line-height: 1.7;
+}
+
+.vm-chat-message-evidence {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid #ede7e1;
+}
+
+.vm-chat-message-evidence h3 {
+  margin: 0 0 0.8rem;
+  color: #55423e;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.vm-chat-message-sources {
+  display: grid;
+  gap: 0.75rem;
+}
+
+@media (max-width: 600px) {
+  .vm-chat-message {
+    padding: 0.9rem;
+  }
+
+  .vm-chat-message--user {
+    max-width: 95%;
+  }
+}

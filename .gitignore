@@ -218,3 +218,9 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# VideoMind local-only material and operating-system metadata
+.DS_Store
+design-references/
+docs/FRONTEND_INTEGRATION_AUDIT.md
+docs/FRONTEND_E2E_READINESS.md

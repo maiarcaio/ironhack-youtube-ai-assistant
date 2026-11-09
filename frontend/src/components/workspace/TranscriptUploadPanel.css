@@ -1,0 +1,102 @@
+.vm-transcript-upload {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 14px;
+  margin: 16px;
+  padding: 18px;
+  border: 1px solid #efb8ac;
+  border-radius: 16px;
+  background: linear-gradient(145deg, #fff8f6 0%, #fff 100%);
+  box-shadow: 0 10px 28px rgb(49 48 47 / 8%);
+}
+
+.vm-transcript-upload__heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.vm-transcript-upload__icon {
+  display: inline-flex;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #ffdad6;
+  color: #93000a;
+  font-weight: 800;
+}
+
+.vm-transcript-upload h2 {
+  margin: 3px 0 0;
+  color: #1c1b1a;
+  font-size: 16px;
+}
+
+.vm-transcript-upload__summary,
+.vm-transcript-upload__filename,
+.vm-transcript-upload__progress,
+.vm-workspace-information {
+  margin: 0;
+  color: #615e5c;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.vm-transcript-upload__server-error {
+  margin: 0;
+  padding: 10px 12px;
+  border-left: 3px solid #ba1a1a;
+  border-radius: 8px;
+  background: #ffdad6;
+  color: #680003;
+  font-size: 12px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.vm-transcript-upload form {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.vm-transcript-upload label {
+  color: #31302f;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.vm-transcript-upload input[type='file'] {
+  width: 100%;
+  min-width: 0;
+  padding: 10px;
+  border: 1px dashed #c9aaa2;
+  border-radius: 10px;
+  background: #fff;
+  color: #55423e;
+  font-size: 12px;
+}
+
+.vm-transcript-upload .primary-button {
+  width: 100%;
+  margin-top: 2px;
+}
+
+.vm-transcript-upload__progress {
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #e8f5f1;
+  color: #205b4f;
+}
+
+@media (max-width: 480px) {
+  .vm-transcript-upload {
+    margin: 12px;
+    padding: 15px;
+  }
+}
