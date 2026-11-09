@@ -1,0 +1,64 @@
+
+/*
+ * VideoMind AI — YouTube Player
+ *
+ * Maintains a responsive 16:9 player and provides
+ * readable loading and error states.
+ */
+
+.vm-youtube-player {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: #252321;
+  color: #fff;
+}
+
+.vm-youtube-player-frame,
+.vm-youtube-player-frame iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.vm-youtube-player-loading {
+  position: absolute;
+  bottom: 1rem;
+  left: 1rem;
+  padding: 0.4rem 0.7rem;
+  border-radius: 0.5rem;
+  background: rgb(0 0 0 / 70%);
+  color: #fff;
+  font-size: 0.8rem;
+  pointer-events: none;
+}
+
+.vm-youtube-player-notice {
+  position: absolute;
+  inset: auto 0 0;
+  padding: 1rem;
+  background: rgb(35 32 30 / 95%);
+}
+
+.vm-youtube-player-notice p {
+  margin: 0;
+  color: #fff;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.vm-youtube-player-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.vm-youtube-player-error p {
+  max-width: 24rem;
+  margin: 0;
+  line-height: 1.5;
+}

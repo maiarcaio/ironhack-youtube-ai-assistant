@@ -1,0 +1,7 @@
+.auth-gate { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: var(--background, #f8f5ef); color: #1c1b1a; }
+.auth-card { width: min(100%, 430px); padding: 36px; border: 1px solid #e7dfd2; border-radius: 18px; background: #fffdf9; box-shadow: 0 18px 50px rgba(45, 35, 21, .08); }
+.auth-card h1 { margin: 10px 0; font-size: 2rem; }
+.auth-card p { line-height: 1.55; color: #665f56; }
+.auth-form { display: grid; gap: 10px; margin-top: 24px; }
+.auth-form input { min-height: 42px; border: 1px solid #d8cfc1; border-radius: 8px; padding: 0 12px; font: inherit; }
+.auth-form .primary-button { margin-top: 10px; }

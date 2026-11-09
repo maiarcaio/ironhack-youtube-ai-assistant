@@ -12,7 +12,7 @@
           "Chat"
         ],
         "summary": "Chat",
-        "description": "Legacy chat endpoint for testing.",
+        "description": "Legacy endpoint for testing.",
         "operationId": "chat_chat_post",
         "requestBody": {
           "content": {
@@ -52,7 +52,7 @@
           "Chat"
         ],
         "summary": "Chat V1",
-        "description": "Answer questions using the selected video's evidence.",
+        "description": "Answer questions using evidence from the selected video.\n\nLocal development only until authentication is implemented.",
         "operationId": "chat_v1_api_v1_chat_post",
         "requestBody": {
           "content": {
@@ -75,8 +75,45 @@
               }
             }
           },
-          "501": {
-            "description": "RAG chat not implemented yet"
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/chat/stream": {
+      "post": {
+        "tags": [
+          "Chat"
+        ],
+        "summary": "Chat Stream",
+        "description": "Stream agent responses using Server-Sent Events.\n\nLocal development only until authentication is implemented.",
+        "operationId": "chat_stream_api_v1_chat_stream_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatV1Request"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
           },
           "422": {
             "description": "Validation Error",

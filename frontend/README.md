@@ -1,75 +1,80 @@
-# React + TypeScript + Vite
+# VideoMind AI Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React and TypeScript interface for VideoMind AI. The frontend authenticates users with Supabase, sends authenticated video and transcript requests to the FastAPI backend, polls backend-owned processing status, and streams grounded Q&A answers with timestamp citations.
 
-Currently, two official plugins are available:
+The browser does not acquire YouTube captions, download audio, run Whisper, create embeddings, or write to Pinecone. Those operations belong to the deployed backend.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Requirements
 
-## React Compiler
+- Node.js 22 LTS (Vite 8 requires a current Node release)
+- npm
+- Chromium installed through Playwright for browser tests
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Install dependencies and the managed browser:
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```bash
+npm install
+npx playwright install chromium
 ```
 
-You can also install [eslint-plugin-react-x](https://npmx.dev/package/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://npmx.dev/package/eslint-plugin-react-dom) for React-specific lint rules:
+## Environment
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+Copy the safe template and supply public frontend configuration:
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```bash
+cp .env.example .env.local
 ```
+
+Required variables:
+
+```dotenv
+VITE_USE_MOCK_API=false
+VITE_API_BASE_URL=http://localhost:8000
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=your-public-publishable-key
+```
+
+Only public Supabase browser configuration belongs in Vite variables. Never put a Supabase service-role key, backend secret, Pinecone key, or model-provider credential in this directory.
+
+### Real-backend mode
+
+Set `VITE_USE_MOCK_API=false` and configure all three backend/Supabase values. The application requires a valid Supabase session and sends its bearer token to FastAPI.
+
+### Explicit mock mode
+
+Set `VITE_USE_MOCK_API=true` for the local demonstration adapter. Mock mode is simulated, does not authenticate, and does not claim real transcript indexing, RAG answers, or citations. Missing configuration never silently enables mock mode.
+
+## Development and validation
+
+```bash
+npm run dev
+npm run build
+npm run lint
+npm test -- --run
+npm run test:e2e
+npm run test:e2e:auth
+```
+
+- `npm run test:e2e` runs the explicit mock-mode browser suite.
+- `npm run test:e2e:auth` intercepts Supabase and FastAPI traffic for deterministic authenticated workflow coverage.
+- Browser tests are offline simulations; they do not prove connectivity to live Supabase, Render, Pinecone, YouTube playback, Whisper, or a model provider.
+
+## Frontend integration map
+
+- `src/components/auth/AuthGate.tsx`: Supabase session restoration and sign-in.
+- `src/services/api/authenticatedVideoApi.ts`: authenticated library, ingestion, and status requests.
+- `src/App.tsx`: UUID-backed library state, status polling, failed-video recovery, and readiness transitions.
+- `src/services/api/videomindBackend.ts`: authenticated transcript upload and SSE chat transport.
+- `src/components/workspace/TranscriptUploadPanel.tsx`: last-resort TXT/SRT/VTT recovery after backend-confirmed failure.
+- `src/components/chat/ChatPanel.tsx`: conversation state, SSE rendering, citations, and thread IDs.
+
+The backend status `completed` is normalized to the frontend state `ready`. Chat unlocks only after a status response confirms completion; an HTTP 201 transcript-upload response alone does not unlock it.
+
+## Backend dependencies and current limitations
+
+Real operation depends on Diogo's deployed FastAPI service and its configured Supabase verification, YouTube caption/audio acquisition, Whisper fallback, embeddings, Pinecone index, and LangChain chat pipeline.
+
+- Manual transcript upload appears only after automatic processing reports `failed`.
+- TXT, SRT, and VTT files are accepted up to 2 MB.
+- The backend currently does not expose readable transcript or chapter endpoints, so those frontend views remain unavailable/empty.
+- Live CORS, Supabase tokens, Render availability, YouTube embed policy, processing providers, and citation quality require staging validation with the deployed backend.

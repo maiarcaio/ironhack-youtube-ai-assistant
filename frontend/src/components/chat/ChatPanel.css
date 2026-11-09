@@ -1,0 +1,208 @@
+
+/*
+ * VideoMind AI — Interactive chat panel.
+ *
+ * Component-scoped classes protect the existing
+ * video library and other screens.
+ */
+
+.vm-chat-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 520px;
+  border: 1px solid #ede7e1;
+  border-radius: 20px;
+  background: #fffdfa;
+  color: #282625;
+  overflow: hidden;
+}
+
+.vm-chat-panel-qa { min-height: 680px; border-radius: 16px; }
+.vm-chat-referenced { padding: 1rem 1.5rem; border-bottom: 1px solid #ede7e1; background: #fff; }
+.vm-chat-referenced-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: .75rem; }
+.vm-chat-referenced-heading h3 { margin: 0; font-size: .95rem; }
+.vm-chat-referenced-heading span { padding: .25rem .65rem; border-radius: 999px; background: #f1edea; color: #615e5c; font-size: .7rem; font-weight: 650; }
+.vm-chat-reference-card { display: flex; width: 100%; gap: .75rem; align-items: flex-start; padding: .75rem; margin-top: .5rem; border: 1px solid #ede7e1; border-radius: 12px; background: #f7f3f0; text-align: left; }
+.vm-chat-reference-card:hover { background: #ffdbd266; border-color: #9a442d4d; }
+.vm-chat-reference-card strong { color: #9a442d; font-family: monospace; font-size: .75rem; }
+.vm-chat-reference-card span { color: #55423e; font-size: .75rem; line-height: 1.45; }
+.vm-chat-reference-empty { padding: 1rem; border: 1px dashed #dbc1ba; border-radius: 12px; color: #88726d; font-size: .75rem; text-align: center; }
+
+.vm-chat-panel-header {
+  padding: 1.5rem;
+  border-bottom: 1px solid #ede7e1;
+}
+
+.vm-chat-panel-eyebrow {
+  margin: 0 0 0.45rem;
+  color: #9a442d;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+}
+
+.vm-chat-panel-header h2 {
+  margin: 0;
+  font-size: 1.45rem;
+  letter-spacing: -0.03em;
+}
+
+.vm-chat-panel-description {
+  margin: 0.5rem 0 0;
+  color: #746b66;
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
+.vm-chat-panel-conversation {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 1rem;
+  min-height: 250px;
+  padding: 1.5rem;
+  overflow-y: auto;
+}
+
+.vm-chat-empty {
+  margin: auto;
+  max-width: 300px;
+  padding: 2rem 1rem;
+  text-align: center;
+}
+
+.vm-chat-empty-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: #fdf1ec;
+  color: #9a442d;
+  font-size: 1.5rem;
+}
+
+.vm-chat-empty h3 {
+  margin: 1rem 0 0.5rem;
+  font-size: 1rem;
+}
+
+.vm-chat-empty p {
+  margin: 0;
+  color: #746b66;
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
+.vm-chat-loading {
+  padding: 0.8rem 1rem;
+  border-radius: 12px;
+  background: #fdf1ec;
+  color: #9a442d;
+  font-size: 0.85rem;
+}
+
+.vm-chat-panel-error {
+  margin: 0 1.5rem 1rem;
+  padding: 0.8rem 1rem;
+  border-radius: 12px;
+  background: #fff0e9;
+  color: #8e3527;
+  font-size: 0.82rem;
+}
+
+.vm-chat-panel-notice {
+  margin: 0 1.5rem 1rem;
+  padding: 0.8rem 1rem;
+  border-radius: 12px;
+  background: #f1edea;
+  color: #55423e;
+  font-size: 0.82rem;
+}
+
+.vm-chat-composer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1.25rem 1.5rem;
+  border-top: 1px solid #ede7e1;
+}
+
+.vm-chat-composer label {
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.vm-chat-composer textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.9rem 1rem;
+  border: 1px solid #e3dcd6;
+  border-radius: 12px;
+  background: #fff;
+  color: #282625;
+  font: inherit;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.vm-chat-composer textarea:focus-visible {
+  outline: 2px solid #9a442d;
+  outline-offset: 2px;
+}
+
+.vm-chat-composer textarea:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.vm-chat-composer-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.vm-chat-composer-actions span {
+  color: #746b66;
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+.vm-chat-composer-actions button {
+  flex-shrink: 0;
+  padding: 0.7rem 1.1rem;
+  border: none;
+  border-radius: 999px;
+  background: #9a442d;
+  color: #fff;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.vm-chat-composer-actions button:hover:not(:disabled) {
+  background: #7c2e19;
+}
+
+.vm-chat-composer-actions button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+@media (max-width: 600px) {
+  .vm-chat-panel-header,
+  .vm-chat-panel-conversation,
+  .vm-chat-composer {
+    padding: 1rem;
+  }
+
+  .vm-chat-composer-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
