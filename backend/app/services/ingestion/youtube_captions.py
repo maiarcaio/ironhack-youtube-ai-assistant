@@ -13,6 +13,8 @@ from youtube_transcript_api import (
 )
 
 from app.services.ingestion.pipeline import ingest_transcript
+from app.services.ingestion.supadata_captions import get_supadata_captions
+from app.services.persistence.supabase_client import get_supabase_admin_client
 
 
 VIDEO_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]{11}$")
@@ -138,17 +140,13 @@ def ingest_youtube_captions(
             languages=PREFERRED_LANGUAGES,
         )
 
-    except RequestBlocked as exc:
-        raise RuntimeError(
-            "YouTube blocked transcript access. "
-            "Use TXT, SRT or VTT upload instead."
-        ) from exc
-
-    except CouldNotRetrieveTranscript as exc:
-        raise RuntimeError(
-            "No accessible transcript was found. "
-            "Use TXT, SRT or VTT upload instead."
-        ) from exc
+    except (RequestBlocked, CouldNotRetrieveTranscript) as exc:
+        try:
+            captions = get_supadata_captions(youtube_video_id)
+        except Exception as provider_exc:
+            raise RuntimeError(
+                "Automatic captions unavailable. Upload TXT, SRT or VTT."
+            ) from provider_exc
 
     srt_blocks = []
 
@@ -194,6 +192,12 @@ def ingest_youtube_captions(
             video_id=target_video_id,
             owner_id=owner_id,
         )
+
+    get_supabase_admin_client().table("transcripts").upsert(
+        {"video_id": target_video_id, "owner_id": owner_id,
+         "content": srt_content, "format": "srt", "source": "youtube"},
+        on_conflict="video_id",
+    ).execute()
 
     return {
         "video_id": target_video_id,
