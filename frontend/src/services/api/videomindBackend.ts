@@ -55,6 +55,7 @@ export interface ChatRequest {
   video_id: string
   message: string
   thread_id?: string | null
+  analysis_mode?: 'auto' | 'deep'
 }
 
 export interface ChatResult {
@@ -215,10 +216,10 @@ export async function askVideoQuestion(
       ...(await authenticatedHeaders(getAccessToken)),
     },
     body: JSON.stringify({
-      ...request,
-      analysis_mode: 'auto',
-      response_language: null,
-    }),
+  ...request,
+  analysis_mode: request.analysis_mode ?? 'auto',
+  response_language: null,
+}),
     signal,
   })
 
@@ -314,7 +315,7 @@ export async function streamVideoQuestion(
       },
       body: JSON.stringify({
         ...request,
-        analysis_mode: 'auto',
+        analysis_mode: request.analysis_mode ?? 'auto',
         response_language: null,
       }),
       signal,

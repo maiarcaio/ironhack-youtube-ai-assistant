@@ -8,6 +8,7 @@ from typing import Any
 from app.services.ingestion.youtube_captions import (
     ingest_youtube_captions,
 )
+from app.services.ingestion.storage_media import ingest_stored_media
 from app.services.persistence.supabase_client import (
     get_supabase_admin_client,
 )
@@ -82,13 +83,9 @@ def process_next_job() -> dict[str, Any] | None:
                 "Video record not found."
             )
 
-        if (
-            video.get("source_type") != "youtube"
-            or not video.get("source_url")
-        ):
-            raise ValueError(
-                "Invalid YouTube ingestion job."
-            )
+        source_type = video.get("source_type")
+        if source_type not in {"youtube", "upload"} or not video.get("source_url"):
+            raise ValueError("Invalid ingestion job source.")
 
         updated = update_video_status(
             owner_id=owner_id,
@@ -101,11 +98,13 @@ def process_next_job() -> dict[str, Any] | None:
                 "Could not update video status."
             )
 
-        result = ingest_youtube_captions(
-            url=video["source_url"],
-            owner_id=owner_id,
-            library_video_id=video_id,
-        )
+        if source_type == "youtube":
+            result = ingest_youtube_captions(
+                url=video["source_url"], owner_id=owner_id,
+                library_video_id=video_id,
+            )
+        else:
+            result = ingest_stored_media(video, owner_id, video_id)
 
         if result["video_id"] != video_id:
             raise RuntimeError(
@@ -142,8 +141,8 @@ def process_next_job() -> dict[str, Any] | None:
 
         if isinstance(exc, (ValueError, RuntimeError)):
             error_message = (
-                "Could not process YouTube captions. "
-                "Upload a TXT, SRT or VTT transcript instead."
+                "Could not process media. "
+                "For YouTube, upload a TXT, SRT or VTT transcript instead."
             )
         else:
             error_message = (

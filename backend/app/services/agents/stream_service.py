@@ -3,11 +3,15 @@
 
 import asyncio
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 from langchain_core.messages import ToolMessage
 
 from app.services.agents.agent import (
     MODEL_NAME,
+    get_model_name,
     create_video_agent,
 )
 from app.services.agents.evidence import (
@@ -32,6 +36,7 @@ async def stream_agent_response(
     video_id: str,
     owner_id: str,
     thread_id: str | None = None,
+    analysis_mode: str = "auto",
 ):
     """Stream agent responses and persist conversation history."""
 
@@ -59,6 +64,7 @@ async def stream_agent_response(
             video_id=video_id,
             owner_id=owner_id,
             checkpointer=None,
+            analysis_mode=analysis_mode,
         )
 
         messages = [
@@ -145,13 +151,14 @@ async def stream_agent_response(
         yield format_sse("done", {
             "thread_id": public_thread_id,
             "answer": answer,
-            "model_used": MODEL_NAME,
+            "model_used": get_model_name(analysis_mode),
             "insufficient_evidence": (
                 search_executed and not sources
             ),
         })
 
     except Exception:
+        logger.exception("VideoMind stream failed for video %s", video_id)
         yield format_sse("error", {
             "message": (
                 "Unable to complete or save the response."

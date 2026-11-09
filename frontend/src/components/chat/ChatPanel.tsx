@@ -3,7 +3,7 @@ import { useRef, useState } from 'react'
 import type { SubmitEvent } from 'react'
 
 import type { ChatApi } from '../../services/api/httpChatApi'
-import type { ChatSource } from '../../types/chat'
+import type { ChatSource, ChatAnalysisMode } from '../../types/chat'
 import type {
   streamVideoQuestion,
 } from '../../services/api/videomindBackend'
@@ -58,6 +58,9 @@ export function ChatPanel({
   const [sendingByVideo, setSendingByVideo] = useState<
     Record<string, boolean>
   >({})
+
+  // Terra is the default; Sol enables Deep Analysis.
+  const [analysisMode, setAnalysisMode] = useState<ChatAnalysisMode>('auto')
 
   // Refs protect against duplicate requests before rerendering.
   const pendingRequests = useRef(new Set<string>())
@@ -150,6 +153,7 @@ export function ChatPanel({
 
     const threadId =
       sessions[requestVideoId]?.threadId ?? null
+    const requestedAnalysisMode = analysisMode
 
     pendingRequests.current.add(requestVideoId)
 
@@ -206,6 +210,7 @@ export function ChatPanel({
             video_id: requestVideoId,
             message: question,
             thread_id: threadId,
+            analysis_mode: requestedAnalysisMode,
           },
           {
             onMeta(meta) {
@@ -265,7 +270,7 @@ export function ChatPanel({
           video_id: requestVideoId,
           message: question,
           thread_id: threadId,
-          analysis_mode: 'auto',
+          analysis_mode: requestedAnalysisMode,
         })
 
         if (response.video_id !== requestVideoId) {
@@ -402,6 +407,46 @@ export function ChatPanel({
           been indexed by the backend.
         </p>
       )}
+
+      <fieldset
+        disabled={!videoId || !isReadyForChat || isSending}
+        aria-label="Analysis mode"
+        style={{ border: 0, padding: 0, margin: '12px 0' }}
+      >
+        <legend style={{ fontWeight: 600, marginBottom: 8 }}>
+          Analysis mode
+        </legend>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            aria-pressed={analysisMode === 'auto'}
+            onClick={() => setAnalysisMode('auto')}
+            style={{
+              padding: '8px 14px', borderRadius: 10,
+              border: '1px solid #dbc1ba',
+              background: analysisMode === 'auto' ? '#9a442d' : '#fff',
+              color: analysisMode === 'auto' ? '#fff' : '#1c1b1a',
+              cursor: 'pointer',
+            }}
+          >
+            Terra · Quick answers
+          </button>
+          <button
+            type="button"
+            aria-pressed={analysisMode === 'deep'}
+            onClick={() => setAnalysisMode('deep')}
+            style={{
+              padding: '8px 14px', borderRadius: 10,
+              border: '1px solid #dbc1ba',
+              background: analysisMode === 'deep' ? '#9a442d' : '#fff',
+              color: analysisMode === 'deep' ? '#fff' : '#1c1b1a',
+              cursor: 'pointer',
+            }}
+          >
+            Sol · Deep Analysis
+          </button>
+        </div>
+      </fieldset>
 
       <form
         className="vm-chat-composer"
