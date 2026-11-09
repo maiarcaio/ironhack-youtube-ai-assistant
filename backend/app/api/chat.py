@@ -23,12 +23,6 @@ CurrentUserId = Annotated[str, Depends(get_current_user_id)]
 def _validate_chat_request(request: ChatV1Request) -> None:
     """Reject unsupported options and invalid questions."""
 
-    if request.analysis_mode != "auto":
-        raise HTTPException(
-            status_code=status.HTTP_501_NOT_IMPLEMENTED,
-            detail="Deep Analysis is not implemented yet.",
-        )
-
     if request.response_language is not None:
         raise HTTPException(
             status_code=status.HTTP_501_NOT_IMPLEMENTED,
@@ -100,6 +94,7 @@ def chat_v1(
         video_id=request.video_id,
         owner_id=owner_id,
         thread_id=request.thread_id,
+        analysis_mode=request.analysis_mode,
     )
 
     return ChatV1Response(
@@ -132,6 +127,7 @@ def chat_stream(
             video_id=request.video_id,
             owner_id=owner_id,
             thread_id=request.thread_id,
+            analysis_mode=request.analysis_mode,
         ),
         media_type="text/event-stream",
         headers={

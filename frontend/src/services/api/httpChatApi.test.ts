@@ -203,23 +203,34 @@ describe('FastAPI V1 chat client', () => {
     ).rejects.toThrow('Chat request failed (503)')
   })
 
-  it('rejects unsupported Deep Analysis locally', async () => {
-    const mockFetch = vi.fn()
-    vi.stubGlobal('fetch', mockFetch)
+  it('sends Deep Analysis requests to the backend', async () => {
+  const mockFetch = vi.fn().mockResolvedValue(
+    new Response(JSON.stringify(exampleChatResponse()), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    }),
+  )
 
-    const api = createHttpChatApi(BASE_URL)
+  vi.stubGlobal('fetch', mockFetch)
 
-    await expect(
-      api.sendMessage({
-        video_id: 'video-123',
-        message: 'Analyze this.',
-        analysis_mode: 'deep',
-      }),
-    ).rejects.toThrow('Deep Analysis is not available yet.')
+  const api = createHttpChatApi(BASE_URL)
 
-    // No network request should be made.
-    expect(mockFetch).not.toHaveBeenCalled()
+  const response = await api.sendMessage({
+    video_id: 'video-123',
+    message: 'Analyze this.',
+    analysis_mode: 'deep',
   })
+
+  expect(mockFetch).toHaveBeenCalledOnce()
+
+  const [, options] = mockFetch.mock.calls[0]
+  const body = JSON.parse(options.body as string)
+
+  expect(body.analysis_mode).toBe('deep')
+  expect(body.video_id).toBe('video-123')
+  expect(body.message).toBe('Analyze this.')
+  expect(response.video_id).toBe('video-123')
+})
 
   it('times out a stalled chat request', async () => {
     vi.useFakeTimers()

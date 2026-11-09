@@ -8,6 +8,7 @@ from langgraph.checkpoint.memory import InMemorySaver
 
 from app.services.agents.agent import (
     MODEL_NAME,
+    get_model_name,
     create_video_agent,
     extract_agent_answer,
 )
@@ -31,6 +32,7 @@ def answer_with_agent(
     video_id: str,
     owner_id: str,
     thread_id: str | None = None,
+    analysis_mode: str = "auto",
 ) -> dict:
     """Answer a question using persistent conversation history."""
 
@@ -63,6 +65,7 @@ def answer_with_agent(
         video_id=video_id,
         owner_id=owner_id,
         checkpointer=None,
+        analysis_mode=analysis_mode,
     )
 
     result = agent.invoke({"messages": messages})
@@ -123,5 +126,5 @@ def answer_with_agent(
         "answer": answer,
         "sources": sources,
         "insufficient_evidence": search_executed and not sources,
-        "model_used": MODEL_NAME,
+        "model_used": get_model_name(analysis_mode),
     }

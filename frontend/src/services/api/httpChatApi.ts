@@ -37,13 +37,7 @@ export function createHttpChatApi(
         throw new Error('Please enter a question.')
       }
 
-      // The current backend has not implemented Deep Analysis.
-      if (
-        request.analysis_mode !== undefined &&
-        request.analysis_mode !== 'auto'
-      ) {
-        throw new Error('Deep Analysis is not available yet.')
-      }
+
 
       // Explicit language selection is not implemented yet.
       if (request.response_language != null) {
@@ -81,7 +75,7 @@ export function createHttpChatApi(
             body: JSON.stringify({
               video_id: request.video_id,
               message: request.message,
-              analysis_mode: 'auto',
+              analysis_mode: request.analysis_mode ?? 'auto',
 
               // Preserve the backend conversation identifier.
               thread_id: request.thread_id ?? null,

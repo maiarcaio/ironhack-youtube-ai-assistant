@@ -19,12 +19,20 @@ from app.services.agents.tools import (
 
 
 MODEL_NAME = "gpt-6.1-terra"
+DEEP_MODEL_NAME = "gpt-6.1-sol"
+
+
+def get_model_name(analysis_mode: str = "auto") -> str:
+    if analysis_mode not in {"auto", "deep"}:
+        raise ValueError("Invalid analysis mode.")
+    return DEEP_MODEL_NAME if analysis_mode == "deep" else MODEL_NAME
 
 
 def create_video_agent(
     video_id: str,
     owner_id: str,
     checkpointer: InMemorySaver | None = None,
+    analysis_mode: str = "auto",
 ):
     """Create a video-specific agent with six tools."""
 
@@ -41,9 +49,11 @@ def create_video_agent(
     ]
 
     llm = ChatOpenAI(
-        model=MODEL_NAME,
-        max_tokens=300,
+        model=get_model_name(analysis_mode),
+        max_tokens=1200 if analysis_mode == "deep" else 400,
         max_retries=1,
+        use_responses_api=True,
+        **({"reasoning": {"effort": "low"}} if analysis_mode == "deep" else {}),
     )
 
     return create_agent(
@@ -64,7 +74,11 @@ def create_video_agent(
             "If evidence is insufficient, say so. "
             "Cite supporting chunk IDs when available. "
             "Reply in the user's language. "
-            "Keep responses concise."
+            "Keep responses concise. "
+            + ("For deep analysis, consider several retrieved passages, "
+               "compare claims carefully and explain uncertainty; "
+               "never invent additional evidence."
+               if analysis_mode == "deep" else "")
         ),
     )
 

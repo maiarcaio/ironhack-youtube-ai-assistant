@@ -72,3 +72,23 @@ def enqueue_youtube_video(
         "video_id": video_id,
         "status": "queued",
     }
+
+
+def enqueue_upload_video(owner_id: str, source_url: str, title: str,
+                         video_id: str) -> dict[str, Any]:
+    """Create an authenticated upload record and its worker job."""
+    video = create_video(
+        owner_id=owner_id, source_type="upload", title=title,
+        source_url=source_url, video_id=video_id,
+    )
+    try:
+        get_supabase_admin_client().table("ingestion_jobs").insert({
+            "video_id": video_id, "owner_id": video["owner_id"],
+            "status": "queued",
+        }).execute()
+    except Exception:
+        get_supabase_admin_client().table("videos").delete().eq(
+            "video_id", video_id
+        ).eq("owner_id", owner_id).execute()
+        raise
+    return {"video_id": video_id, "status": "queued"}
