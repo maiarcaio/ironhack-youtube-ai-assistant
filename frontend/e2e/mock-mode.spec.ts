@@ -24,6 +24,16 @@ test.describe('VideoMind browser reliability — simulated mock mode', () => {
     await expect(page.getByRole('button', { name: 'Send question' })).toBeDisabled()
     await expect(page.getByText(/indexed by the backend/i)).toBeVisible()
 
+    const terra = page.getByRole('button', { name: 'Terra Quick answers' })
+    const sol = page.getByRole('button', { name: 'Sol Deep Analysis' })
+    await expect(terra).toHaveAttribute('aria-pressed', 'true')
+    await sol.click()
+    await expect(sol).toHaveAttribute('aria-pressed', 'true')
+    await terra.focus()
+    await page.keyboard.press('Enter')
+    await expect(terra).toHaveAttribute('aria-pressed', 'true')
+    await expect(page.getByRole('button', { name: 'Send question' })).toBeDisabled()
+
     await page.getByRole('button', { name: 'Open Q&A' }).click()
     await expect(page.getByText('Demo video — not indexed')).toBeVisible()
     await expect(page.getByText('Transcript indexed')).toHaveCount(0)

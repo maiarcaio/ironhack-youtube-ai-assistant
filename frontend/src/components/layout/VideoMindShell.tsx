@@ -33,7 +33,7 @@ export function VideoMindShell({ children, activePage, onNavigate, onAddVideo, o
   return <div className="min-h-screen bg-[#f7f3f0] text-[#1c1b1a] flex">
     <aside className="fixed left-3.5 top-3.5 bottom-3.5 w-16 bg-[#31302f] rounded-2xl z-50 flex flex-col items-center py-4 shadow-[0_10px_30px_-4px_rgba(40,38,37,0.18)] border border-[#494645]/40" aria-label="Main navigation">
       <button onClick={() => onNavigate('library')} className="flex flex-col items-center gap-1 mb-6 group" title="VideoMind home" aria-label="Video Library">
-        <div className="w-8 h-8 rounded-lg bg-[#9a442d] group-hover:bg-[#e07a5f] transition-colors flex items-center justify-center text-white font-bold text-[11px] shadow-md">VM</div><span className="text-[10px] font-bold text-[#cac5c4] tracking-wider uppercase">VM</span>
+        <img src="/videomind-logo.png" alt="" className="w-9 h-9 object-contain drop-shadow-md transition-transform duration-200 group-hover:scale-105" />
       </button>
       <nav className="flex-1 flex flex-col items-center gap-2.5 w-full px-1.5" aria-label="Primary">
         {navigation.map((item) => <button key={item.id} type="button" onClick={() => onNavigate(item.id)} className={`relative w-11 h-11 flex items-center justify-center rounded-xl transition-all group ${activePage === item.id ? 'bg-[#9a442d] text-white shadow-md' : 'text-[#e7e1df] hover:bg-[#e5e2df]/15 hover:text-white hover:scale-105'}`} title={item.label} aria-label={item.label} aria-current={activePage === item.id ? 'page' : undefined}><span className="text-[21px] leading-none">{item.icon}</span></button>)}

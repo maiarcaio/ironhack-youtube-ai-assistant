@@ -34,6 +34,26 @@ const EMPTY_SESSION: ChatSession = {
   threadId: null,
 }
 
+function AnalysisModeIcon({ mode }: { mode: ChatAnalysisMode }) {
+  if (mode === 'auto') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M4.5 13a7.5 7.5 0 0 1 15 0" />
+        <path d="M4 16c2-1.6 4-1.6 6 0s4 1.6 6 0 3.3-1.6 4-1" />
+        <path d="M7 19h10" />
+      </svg>
+    )
+  }
+
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <circle cx="12" cy="12" r="3" />
+      <path d="M4.5 12c0-3.8 3.4-6.8 7.5-6.8s7.5 3 7.5 6.8-3.4 6.8-7.5 6.8S4.5 15.8 4.5 12Z" />
+      <path d="M8.3 4.4c2.2 1.2 4.3 3.7 5.7 6.7 1.5 3.2 1.8 6.3 1 8.5" />
+    </svg>
+  )
+}
+
 export function ChatPanel({
   videoId,
   isReadyForChat,
@@ -409,41 +429,39 @@ export function ChatPanel({
       )}
 
       <fieldset
-        disabled={!videoId || !isReadyForChat || isSending}
+        disabled={isSending}
         aria-label="Analysis mode"
-        style={{ border: 0, padding: 0, margin: '12px 0' }}
+        className="vm-analysis-mode"
       >
-        <legend style={{ fontWeight: 600, marginBottom: 8 }}>
-          Analysis mode
-        </legend>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <legend>Analysis mode</legend>
+        <div className="vm-analysis-mode-options">
           <button
             type="button"
+            aria-label="Terra Quick answers"
             aria-pressed={analysisMode === 'auto'}
             onClick={() => setAnalysisMode('auto')}
-            style={{
-              padding: '8px 14px', borderRadius: 10,
-              border: '1px solid #dbc1ba',
-              background: analysisMode === 'auto' ? '#9a442d' : '#fff',
-              color: analysisMode === 'auto' ? '#fff' : '#1c1b1a',
-              cursor: 'pointer',
-            }}
           >
-            Terra · Quick answers
+            <span className="vm-analysis-mode-icon">
+              <AnalysisModeIcon mode="auto" />
+            </span>
+            <span className="vm-analysis-mode-copy">
+              <strong>Terra</strong>
+              <small>Quick answers</small>
+            </span>
           </button>
           <button
             type="button"
+            aria-label="Sol Deep Analysis"
             aria-pressed={analysisMode === 'deep'}
             onClick={() => setAnalysisMode('deep')}
-            style={{
-              padding: '8px 14px', borderRadius: 10,
-              border: '1px solid #dbc1ba',
-              background: analysisMode === 'deep' ? '#9a442d' : '#fff',
-              color: analysisMode === 'deep' ? '#fff' : '#1c1b1a',
-              cursor: 'pointer',
-            }}
           >
-            Sol · Deep Analysis
+            <span className="vm-analysis-mode-icon">
+              <AnalysisModeIcon mode="deep" />
+            </span>
+            <span className="vm-analysis-mode-copy">
+              <strong>Sol</strong>
+              <small>Deep Analysis</small>
+            </span>
           </button>
         </div>
       </fieldset>
