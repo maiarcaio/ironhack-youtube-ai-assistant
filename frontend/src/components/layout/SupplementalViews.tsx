@@ -17,6 +17,7 @@ interface SupplementalProps {
 
 interface TranscriptProps extends SupplementalProps {
   onSeek: (seconds: number) => void
+  compact?: boolean
 }
 
 function ScreenHeader({ eyebrow, title, description }: { eyebrow: string; title: string; description: string }) {
@@ -58,7 +59,7 @@ export function SearchableTranscriptView(props: TranscriptProps) {
   )
 }
 
-function TranscriptContent({ selectedVideo, onNavigate, onSeek }: TranscriptProps) {
+export function TranscriptContent({ selectedVideo, onNavigate, onSeek, compact = false }: TranscriptProps) {
   const [segments, setSegments] = useState<TranscriptSegment[]>([])
   const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(Boolean(selectedVideo))
@@ -109,9 +110,9 @@ function TranscriptContent({ selectedVideo, onNavigate, onSeek }: TranscriptProp
       : segments
   }, [query, segments])
 
-  return <div className="vm-screen">
-    <ScreenHeader eyebrow="SEARCHABLE TRANSCRIPT" title="Every moment, searchable." description="Find and revisit exact spoken moments from a video." />
-    <div className="vm-transcript-layout">
+  return <div className={compact ? 'vm-transcript-compact' : 'vm-screen'}>
+    {!compact && <ScreenHeader eyebrow="SEARCHABLE TRANSCRIPT" title="Every moment, searchable." description="Find and revisit exact spoken moments from a video." />}
+    <div className={compact ? 'vm-transcript-layout vm-transcript-layout-compact' : 'vm-transcript-layout'}>
       <section className="vm-paper">
         <div className="vm-search-surface"><span>⌕</span><input aria-label="Search transcript" placeholder="Search transcript" value={query} onChange={(event) => setQuery(event.target.value)} disabled={loading || segments.length === 0} /></div>
         {loading && <div className="vm-unavailable-panel" role="status"><p>Loading transcript...</p></div>}
@@ -127,7 +128,7 @@ function TranscriptContent({ selectedVideo, onNavigate, onSeek }: TranscriptProp
           </div>
         </>}
       </section>
-      <aside className="vm-paper vm-context-card"><p>VIDEO CONTEXT</p><h2>{selectedVideo?.title ?? 'Choose a video'}</h2><span>{segments.length > 0 ? 'Use a timestamp to return to the matching video moment.' : 'Transcript content appears here when available.'}</span>{selectedVideo && <button type="button" onClick={() => onNavigate('workspace')}>Back to video</button>}</aside>
+      {!compact && <aside className="vm-paper vm-context-card"><p>VIDEO CONTEXT</p><h2>{selectedVideo?.title ?? 'Choose a video'}</h2><span>{segments.length > 0 ? 'Use a timestamp to return to the matching video moment.' : 'Transcript content appears here when available.'}</span>{selectedVideo && <button type="button" onClick={() => onNavigate('workspace')}>Back to video</button>}</aside>}
     </div>
   </div>
 }

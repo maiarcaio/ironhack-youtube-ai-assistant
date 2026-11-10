@@ -1,4 +1,4 @@
-import { forwardRef, useState } from 'react'
+import { forwardRef, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 
 import type { Video } from '../../types/video'
@@ -11,6 +11,9 @@ interface Props {
   isMockMode: boolean
   notesCount: number
   notesPanel: ReactNode
+  transcriptPanel: ReactNode
+  selectedTool?: 'ask-ai' | 'transcript' | 'notes'
+  onToolChange?: (tool: 'ask-ai' | 'transcript' | 'notes') => void
   onBack: () => void
   onOpenAssistant: () => void
   onPlayerReadyChange: (ready: boolean) => void
@@ -28,6 +31,9 @@ export const VideoWorkspaceView = forwardRef<
   isMockMode,
   notesCount,
   notesPanel,
+  transcriptPanel,
+  selectedTool,
+  onToolChange,
   onBack,
   onOpenAssistant,
   onPlayerReadyChange,
@@ -35,10 +41,29 @@ export const VideoWorkspaceView = forwardRef<
   children,
   player,
 }, ref) {
-  const [rightTab, setRightTab] = useState<'ask-ai' | 'notes'>('ask-ai')
+  const [rightTab, setRightTab] = useState<'ask-ai' | 'transcript' | 'notes'>('ask-ai')
+
+  useEffect(() => {
+    if (selectedTool) setRightTab(selectedTool)
+  }, [selectedTool])
+
+  function selectTool(tool: 'ask-ai' | 'transcript' | 'notes'): void {
+    setRightTab(tool)
+    onToolChange?.(tool)
+  }
+
+  const workspaceStatus = isMockMode
+    ? 'Demo video — not indexed'
+    : video?.status === 'ready'
+      ? 'Transcript indexed'
+      : video?.status === 'failed'
+        ? 'Automatic processing failed — recovery available'
+        : video?.status === 'processing'
+          ? 'Automatic processing in progress'
+          : 'Waiting for processing'
 
   return (
-    <div className="max-w-7xl mx-auto w-full pb-16 flex flex-col gap-6" role="region" aria-label="Video workspace">
+    <div className="max-w-7xl mx-auto w-full pb-8 sm:pb-16 flex flex-col gap-4 sm:gap-6" role="region" aria-label="Video workspace">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-[#ede7e1]/80">
         <div className="space-y-1">
           <div className="flex items-center gap-2 text-xs font-semibold text-[#9a442d] uppercase tracking-wider">
@@ -47,10 +72,11 @@ export const VideoWorkspaceView = forwardRef<
             <span className="text-[#55423e] font-normal normal-case">{isMockMode ? 'Demonstration session' : 'Authenticated study session'}</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold text-[#1c1b1a] tracking-tight">{video?.title ?? 'Choose a video to begin'}</h1>
+          {video && <p className="text-xs text-[#615e5c]">{workspaceStatus}</p>}
         </div>
-        <div className="flex items-center gap-3">
-          <button type="button" onClick={onBack} className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white text-[#1c1b1a] hover:bg-[#f1edea] shadow-xs border border-[#ede7e1] text-xs font-semibold">← Back to library</button>
-          {video && <button type="button" onClick={onOpenAssistant} className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#9a442d] text-white hover:bg-[#5b1604] text-xs font-semibold">✦ Open Q&amp;A</button>}
+        <div className="flex items-center gap-2 sm:gap-3">
+          <button type="button" onClick={onBack} className="flex items-center gap-1.5 px-3 sm:px-3.5 py-2 rounded-xl bg-white text-[#1c1b1a] hover:bg-[#f1edea] shadow-xs border border-[#ede7e1] text-xs font-semibold">← Back to library</button>
+          {video && <button type="button" onClick={onOpenAssistant} className="flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-xl bg-[#9a442d] text-white hover:bg-[#5b1604] text-xs font-semibold">✦ Open Q&amp;A</button>}
         </div>
       </div>
 
@@ -71,20 +97,15 @@ export const VideoWorkspaceView = forwardRef<
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div className="grid grid-cols-1 gap-5">
               <section className="p-5 rounded-2xl bg-white shadow-xs border border-[#ede7e1]">
-                <div className="flex items-center justify-between"><h2 className="text-sm font-bold">Processing &amp; source</h2><span className="text-[10px] font-mono text-[#88726d]">UUID</span></div>
-                <code className="block mt-3 text-[11px] break-all text-[#615e5c] bg-[#f7f3f0] p-3 rounded-xl">{video.id}</code>
+                <h2 className="text-sm font-bold">Processing &amp; source</h2>
                 {!video.source_url.startsWith('storage://') && <a href={video.source_url} target="_blank" rel="noopener noreferrer" className="inline-block mt-3 text-xs font-semibold text-[#9a442d] underline">Open original YouTube video ↗</a>}
                 {video.status === 'queued' && <p className="mt-3 text-xs text-[#615e5c] leading-relaxed">Waiting for automatic processing to begin. Grounded chat remains locked.</p>}
                 {video.status === 'processing' && <p className="mt-3 text-xs text-[#615e5c] leading-relaxed">Automatic processing is in progress. Grounded chat unlocks only after completion.</p>}
                 {video.status === 'ready' && <p className="mt-3 text-xs text-[#2d685b]">{isMockMode ? 'This video is ready in demonstration mode. It has not been verified as indexed by the real RAG backend.' : 'Backend indexing is complete.'}</p>}
                 {video.status === 'failed' && <p role="alert" className="mt-3 text-xs text-[#93000a]">Automatic processing failed. {video.error ?? 'The backend did not provide a specific reason.'}</p>}
                 {pollingError && <p role="alert" className="mt-3 text-xs text-[#93000a]">Status check unavailable: {pollingError}</p>}
-              </section>
-              <section className="p-5 rounded-2xl bg-white shadow-xs border border-[#ede7e1]">
-                <div className="flex items-center justify-between"><h2 className="text-sm font-bold">Chapters</h2><span className="px-2 py-0.5 rounded-full bg-[#f1edea] text-[#88726d] text-[10px]">0 available</span></div>
-                <div className="mt-5 py-8 text-center rounded-xl bg-[#f7f3f0] border border-dashed border-[#dbc1ba]"><div className="text-xl text-[#9a442d]">≡</div><p className="mt-2 text-xs font-semibold">No chapter data available</p><span className="block mt-1 text-[11px] text-[#88726d]">The backend does not expose chapters yet.</span></div>
               </section>
             </div>
 
@@ -94,15 +115,17 @@ export const VideoWorkspaceView = forwardRef<
             </div>
           </section>
 
-          <aside className="lg:col-span-4 flex flex-col rounded-2xl bg-white shadow-md border border-[#ede7e1] overflow-hidden min-h-[640px]">
-            <div className="px-4 pt-4 pb-2 bg-[#f7f3f0] border-b border-[#ede7e1] flex items-center justify-between">
-              <div className="flex items-center gap-3" role="tablist" aria-label="Workspace tools">
-                <button type="button" role="tab" aria-selected={rightTab === 'ask-ai'} onClick={() => setRightTab('ask-ai')} className={`relative pb-2 text-xs font-semibold flex items-center gap-1.5 ${rightTab === 'ask-ai' ? 'text-[#1c1b1a]' : 'text-[#88726d]'}`}><span aria-hidden="true" className="text-[#9a442d]">✦</span><span>Ask AI</span>{rightTab === 'ask-ai' && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#9a442d] rounded-full" />}</button>
-                <button type="button" role="tab" aria-selected={rightTab === 'notes'} onClick={() => setRightTab('notes')} className={`relative pb-2 text-xs font-semibold flex items-center gap-1.5 ${rightTab === 'notes' ? 'text-[#1c1b1a]' : 'text-[#88726d]'}`}><span aria-hidden="true">✎</span><span>Notes ({notesCount})</span>{rightTab === 'notes' && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#9a442d] rounded-full" />}</button>
+          <aside className="lg:col-span-4 flex flex-col rounded-2xl bg-white shadow-md border border-[#ede7e1] overflow-hidden min-h-[540px] sm:min-h-[640px]">
+            <div className="px-3 sm:px-4 pt-4 pb-2 bg-[#f7f3f0] border-b border-[#ede7e1] flex items-center justify-between">
+              <div className="flex items-center gap-2 sm:gap-3" role="tablist" aria-label="Workspace tools">
+                <button type="button" role="tab" aria-selected={rightTab === 'ask-ai'} onClick={() => selectTool('ask-ai')} className={`relative whitespace-nowrap pb-2 text-[11px] sm:text-xs font-semibold flex items-center gap-1 ${rightTab === 'ask-ai' ? 'text-[#1c1b1a]' : 'text-[#88726d]'}`}><span aria-hidden="true" className="text-[#9a442d]">✦</span><span>Ask AI</span>{rightTab === 'ask-ai' && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#9a442d] rounded-full" />}</button>
+                <button type="button" role="tab" aria-selected={rightTab === 'transcript'} onClick={() => selectTool('transcript')} className={`relative whitespace-nowrap pb-2 text-[11px] sm:text-xs font-semibold flex items-center gap-1 ${rightTab === 'transcript' ? 'text-[#1c1b1a]' : 'text-[#88726d]'}`}><span aria-hidden="true">▤</span><span>Transcript</span>{rightTab === 'transcript' && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#9a442d] rounded-full" />}</button>
+                <button type="button" role="tab" aria-selected={rightTab === 'notes'} onClick={() => selectTool('notes')} className={`relative whitespace-nowrap pb-2 text-[11px] sm:text-xs font-semibold flex items-center gap-1 ${rightTab === 'notes' ? 'text-[#1c1b1a]' : 'text-[#88726d]'}`}><span aria-hidden="true">✎</span><span>Notes ({notesCount})</span>{rightTab === 'notes' && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#9a442d] rounded-full" />}</button>
               </div>
-              <span className="px-2.5 py-0.5 rounded-full bg-[#f1edea] text-[#55423e] text-[11px]">Browser local</span>
+              <span className="hidden sm:inline px-2.5 py-0.5 rounded-full bg-[#f1edea] text-[#55423e] text-[11px]">Browser local</span>
             </div>
             <div className="flex-1 flex flex-col" hidden={rightTab !== 'ask-ai'}>{children}</div>
+            <div className="flex-1 flex flex-col" hidden={rightTab !== 'transcript'}>{transcriptPanel}</div>
             <div className="flex-1 flex flex-col" hidden={rightTab !== 'notes'}>{notesPanel}</div>
           </aside>
         </div>

@@ -5,11 +5,10 @@ import type { Session } from '@supabase/supabase-js'
 
 import { VideoMindShell } from './components/layout/VideoMindShell'
 import type { Page } from './components/layout/VideoMindShell'
-import { SearchableTranscriptView, SettingsView } from './components/layout/SupplementalViews'
+import { SettingsView, TranscriptContent } from './components/layout/SupplementalViews'
 import { VideoWorkspaceView } from './components/workspace/VideoWorkspaceView'
 import { TranscriptUploadPanel } from './components/workspace/TranscriptUploadPanel'
 import { ChatPanel } from './components/chat/ChatPanel'
-import { QAAssistantView } from './components/chat/QAAssistantView'
 import { AddVideoModal } from './components/video/AddVideoModal'
 import { AudioUploadModal } from './components/video/AudioUploadModal'
 import { AudioPlayer } from './components/player/AudioPlayer'
@@ -139,19 +138,12 @@ function App({ session = null }: AppProps) {
       return
     }
 
-    if (activePage === 'transcript') {
-      // Wait until the workspace is visible before sending the request to its
-      // player, which remains mounted while the transcript is shown.
+    if (!playerRef.current?.seekTo(seconds)) {
       pendingTranscriptSeekRef.current = {
         videoId: selectedVideo.id,
         seconds,
       }
-      setActivePage('workspace')
-
-      return
     }
-
-    playerRef.current?.seekTo(seconds)
   }
 
   function handleOpenNote(note: VideoNote): void {
@@ -604,7 +596,6 @@ function App({ session = null }: AppProps) {
         api={chatApi}
         stream={!useMockApi ? (request, callbacks) => streamVideoQuestion(request, callbacks, undefined, getAccessToken) : undefined}
         onSeek={handleSeekToSource}
-        presentation={activePage === 'qa' ? 'qa' : 'workspace'}
       />
     </>
   )
@@ -617,6 +608,17 @@ function App({ session = null }: AppProps) {
       onSeek={handleSeekToSource}
     />
   ) : null
+
+  const transcriptPanel = (
+    <TranscriptContent
+      key={`workspace-transcript-${selectedVideo?.id ?? 'none'}`}
+      videos={videos}
+      selectedVideo={selectedVideo}
+      onNavigate={setActivePage}
+      onSeek={handleSeekToSource}
+      compact
+    />
+  )
 
   return (
     <VideoMindShell
@@ -653,27 +655,18 @@ function App({ session = null }: AppProps) {
       */}
       <div
         className="vm-workspace-mounted"
-        hidden={activePage !== 'workspace' && activePage !== 'qa'}
+        hidden={activePage !== 'workspace' && activePage !== 'qa' && activePage !== 'transcript'}
       >
-        {activePage === 'qa' ? (
-          <QAAssistantView
-            ref={playerRef}
-            video={selectedVideo}
-            isMockMode={useMockApi}
-            onBack={() => setActivePage('library')}
-            onTranscript={() => setActivePage('transcript')}
-            player={selectedUnsupported ? <UnsupportedMediaNotice /> : selectedAudio ? <AudioPlayer videoId={selectedVideo.id} title={selectedVideo.title} getPlayback={activeVideoApi.getAudioPlayback} ref={playerRef} /> : undefined}
-          >
-            {assistantPanel}
-          </QAAssistantView>
-        ) : (
-          <VideoWorkspaceView
+        <VideoWorkspaceView
           ref={playerRef}
           video={selectedVideo}
           notesCount={selectedVideo
             ? notes.filter((note) => note.videoId === selectedVideo.id).length
             : 0}
           notesPanel={notesPanel}
+          transcriptPanel={transcriptPanel}
+          selectedTool={activePage === 'qa' ? 'ask-ai' : activePage === 'transcript' ? 'transcript' : undefined}
+          onToolChange={(tool) => setActivePage(tool === 'ask-ai' ? 'qa' : tool === 'transcript' ? 'transcript' : 'workspace')}
           pollingError={
             selectedVideo
               ? pollingErrors[
@@ -690,16 +683,7 @@ function App({ session = null }: AppProps) {
         >
           {assistantPanel}
         </VideoWorkspaceView>
-        )}
       </div>
-      {activePage === 'transcript' && (
-        <SearchableTranscriptView
-          videos={videos}
-          selectedVideo={selectedVideo}
-          onNavigate={setActivePage}
-          onSeek={handleSeekToSource}
-        />
-      )}
       {activePage === 'notes' && (
         <SavedNotesView
           videos={videos}

@@ -5,6 +5,9 @@
 .vm-screen-header h1 { margin: 0; font-size: clamp(28px, 4vw, 39px); letter-spacing: -.045em; }
 .vm-screen-header span { display: block; margin-top: 7px; color: #615e5c; font-size: 14px; }
 .vm-transcript-layout { display: grid; grid-template-columns: minmax(0, 1.8fr) minmax(260px, .8fr); gap: 24px; margin-top: 24px; }
+.vm-transcript-layout-compact { display: block; margin-top: 0; }
+.vm-transcript-compact .vm-paper { padding: 18px; border: 0; border-radius: 0; box-shadow: none; }
+.vm-transcript-compact .vm-transcript-segments { max-height: 560px; overflow-y: auto; padding-right: 4px; }
 .vm-paper { padding: 24px; border: 1px solid #ede7e1; border-radius: 18px; background: #fff; box-shadow: 0 2px 12px rgb(40 38 37 / 3%); }
 .vm-search-surface { display: flex; align-items: center; gap: 10px; padding: 4px 13px; border: 1px solid #ede7e1; border-radius: 12px; background: #f7f3f0; color: #88726d; }
 .vm-search-surface input, .vm-notes-toolbar input { width: 100%; padding: 10px 0; border: 0; outline: 0; background: transparent; color: #88726d; font: inherit; font-size: 13px; }
@@ -20,4 +23,4 @@
 button.vm-transcript-time { cursor: pointer; }.vm-transcript-time:focus-visible { outline: 3px solid #e07a5f; outline-offset: 2px; }
 .vm-notes-toolbar { display: flex; gap: 12px; margin: 24px 0; padding: 10px 13px; border: 1px solid #ede7e1; border-radius: 16px; background: #fff; }.vm-notes-toolbar button, .vm-settings-card button { padding: 9px 13px; border: 0; border-radius: 9px; background: #f1edea; color: #88726d; font: inherit; font-size: 12px; font-weight: 700; }
 .vm-settings { max-width: 920px; }.vm-settings > .vm-paper { margin-top: 16px; }.vm-settings-card { display: flex; align-items: center; gap: 15px; }.vm-setting-icon { display: grid; flex: 0 0 40px; width: 40px; height: 40px; place-items: center; border-radius: 12px; background: #ffdbd2; color: #9a442d; font-size: 20px; }.vm-settings-card h2 { margin: 0; font-size: 16px; }.vm-settings-card p { margin: 5px 0 0; color: #615e5c; font-size: 12px; line-height: 1.55; }.vm-settings-card button, .vm-status { margin-left: auto; flex-shrink: 0; }.vm-status { color: #2d685b; font-size: 12px; font-weight: 700; }
-@media (max-width: 700px) { .vm-transcript-layout { grid-template-columns: 1fr; }.vm-paper { padding: 18px; }.vm-settings-card { align-items: flex-start; flex-wrap: wrap; }.vm-settings-card button, .vm-status { margin-left: 55px; }.vm-notes-toolbar { flex-direction: column; } }
+@media (max-width: 700px) { .vm-transcript-layout { grid-template-columns: 1fr; }.vm-transcript-compact .vm-transcript-segments { max-height: none; }.vm-paper { padding: 18px; }.vm-settings-card { align-items: flex-start; flex-wrap: wrap; }.vm-settings-card button, .vm-status { margin-left: 55px; }.vm-notes-toolbar { flex-direction: column; } }
