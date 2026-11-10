@@ -13,6 +13,7 @@ import { QAAssistantView } from './components/chat/QAAssistantView'
 import { AddVideoModal } from './components/video/AddVideoModal'
 import { AudioUploadModal } from './components/video/AudioUploadModal'
 import { AudioPlayer } from './components/player/AudioPlayer'
+import type { AudioPlayerHandle } from './components/player/AudioPlayer'
 import { isUploadedAudioSource } from './services/api/audioUpload'
 import { VideoLibraryView } from './components/video/VideoLibraryView'
 import { SavedNotesView } from './components/notes/SavedNotesView'
@@ -93,7 +94,7 @@ function App({ session = null }: AppProps) {
    * ChatPanel requests seeking through a callback rather
    * than interacting directly with the player.
    */
-  const playerRef = useRef<YouTubePlayerHandle>(null)
+  const playerRef = useRef<YouTubePlayerHandle & AudioPlayerHandle>(null)
   const pendingTranscriptSeekRef = useRef<{
     videoId: string
     seconds: number
@@ -647,7 +648,7 @@ function App({ session = null }: AppProps) {
             isMockMode={useMockApi}
             onBack={() => setActivePage('library')}
             onTranscript={() => setActivePage('transcript')}
-            player={selectedVideo && isUploadedAudioSource(selectedVideo.source_url) ? <AudioPlayer videoId={selectedVideo.id} title={selectedVideo.title} getPlayback={activeVideoApi.getAudioPlayback} ref={playerRef as never} /> : undefined}
+            player={selectedVideo && isUploadedAudioSource(selectedVideo.source_url) ? <AudioPlayer videoId={selectedVideo.id} title={selectedVideo.title} getPlayback={activeVideoApi.getAudioPlayback} ref={playerRef} /> : undefined}
           >
             {assistantPanel}
           </QAAssistantView>
@@ -671,7 +672,7 @@ function App({ session = null }: AppProps) {
           onPlayerUnavailable={handlePlayerUnavailable}
           onOpenAssistant={() => setActivePage('qa')}
             onBack={() => setActivePage('library')}
-            player={selectedVideo && isUploadedAudioSource(selectedVideo.source_url) ? <AudioPlayer videoId={selectedVideo.id} title={selectedVideo.title} getPlayback={activeVideoApi.getAudioPlayback} ref={playerRef as never} onReadyChange={handlePlayerReadyChange} onUnavailable={handlePlayerUnavailable} /> : undefined}
+            player={selectedVideo && isUploadedAudioSource(selectedVideo.source_url) ? <AudioPlayer videoId={selectedVideo.id} title={selectedVideo.title} getPlayback={activeVideoApi.getAudioPlayback} ref={playerRef} onReadyChange={handlePlayerReadyChange} onUnavailable={handlePlayerUnavailable} /> : undefined}
         >
           {assistantPanel}
         </VideoWorkspaceView>

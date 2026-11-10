@@ -41,10 +41,13 @@ export const AudioPlayer = forwardRef<
   const [playbackUrl, setPlaybackUrl] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isReady, setIsReady] = useState(false)
+  const requestGeneration = useRef(0)
 
   const loadPlayback = useCallback(async () => {
+    const generation = ++requestGeneration.current
     setIsReady(false)
     setError(null)
+    setPlaybackUrl(null)
     onReadyChange?.(false)
 
     try {
@@ -57,12 +60,15 @@ export const AudioPlayer = forwardRef<
         throw new Error('Audio playback response did not match this recording.')
       }
 
+      if (generation !== requestGeneration.current) return
+
       setPlaybackUrl(playback.url)
     } catch (caughtError) {
       const message = caughtError instanceof Error
         ? caughtError.message
         : 'Audio playback is unavailable.'
 
+      if (generation !== requestGeneration.current) return
       setPlaybackUrl(null)
       setError(message)
       onUnavailable?.()
@@ -110,6 +116,8 @@ export const AudioPlayer = forwardRef<
 
     return () => {
       cancelled = true
+      requestGeneration.current += 1
+      setPlaybackUrl(null)
       onReadyChange?.(false)
     }
   }, [loadPlayback, onReadyChange])

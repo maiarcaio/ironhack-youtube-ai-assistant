@@ -23,6 +23,7 @@ export type AccessTokenProvider = () => Promise<
 >
 
 const REQUEST_TIMEOUT_MS = 15_000
+const AUDIO_UPLOAD_TIMEOUT_MS = 120_000
 
 function getApiError(
   status: number,
@@ -66,6 +67,7 @@ export function createAuthenticatedVideoApi(
   async function requestJson(
     path: string,
     options: RequestInit = {},
+    timeoutMs = REQUEST_TIMEOUT_MS,
   ): Promise<unknown> {
     // Resolve a fresh token for every API request.
     // Supabase may refresh sessions between requests.
@@ -81,7 +83,7 @@ export function createAuthenticatedVideoApi(
 
     const timeoutId = setTimeout(() => {
       controller.abort()
-    }, REQUEST_TIMEOUT_MS)
+    }, timeoutMs)
 
     try {
       const response = await fetch(
@@ -120,8 +122,11 @@ export function createAuthenticatedVideoApi(
       return (await response.json()) as unknown
     } catch (error) {
       if (controller.signal.aborted) {
+        const isUpload = path === '/api/v1/videos/upload'
         throw new Error(
-          'The backend request timed out.',
+          isUpload
+            ? 'The upload request timed out. It may still have been accepted; refresh your library before trying again.'
+            : 'The backend request timed out.',
           { cause: error },
         )
       }
@@ -162,6 +167,7 @@ export function createAuthenticatedVideoApi(
           method: 'POST',
           body: formData,
         },
+        AUDIO_UPLOAD_TIMEOUT_MS,
       )
 
       return validateIngestVideoResponse(result)

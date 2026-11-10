@@ -18,6 +18,8 @@ export interface Video {
   error?: string | null
 }
 
+export type VideoMediaType = 'youtube' | 'audio' | 'unsupported'
+
 // Request sent when the user submits a YouTube URL.
 export interface IngestVideoRequest {
   url: string
