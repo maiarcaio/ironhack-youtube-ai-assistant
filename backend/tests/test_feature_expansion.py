@@ -82,14 +82,21 @@ def test_supadata_timestamps_are_milliseconds(monkeypatch):
     monkeypatch.setenv("SUPADATA_API_KEY", "fake-test-key")
     class Response:
         status_code = 200
-        def raise_for_status(self): pass
-    def json(self):
-        return {
-            "lang": "en",
-            "content": [
-                {"text": "Hello", "offset": 3500, "duration": 1250}
-            ],
-        }
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {
+                "lang": "en",
+                "content": [
+                    {
+                        "text": "Hello",
+                        "offset": 3500,
+                        "duration": 1250,
+                    }
+                ],
+            }
     
     class HTTP:
         def __init__(self, *args, **kwargs): pass
