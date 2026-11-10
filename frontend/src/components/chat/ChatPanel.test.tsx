@@ -14,6 +14,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from '@testing-library/react'
 
 import userEvent from '@testing-library/user-event'
@@ -66,6 +67,66 @@ function makeApi(
 }
 
 describe('ChatPanel', () => {
+  it('presents Terra and Sol as structured analysis choices', () => {
+    const api = makeApi(async () => makeResponse('video-a'))
+
+    render(
+      <ChatPanel
+        videoId="video-a"
+        isReadyForChat
+        api={api}
+      />,
+    )
+
+    const terra = screen.getByRole('button', {
+      name: /Terra Quick answers/i,
+    })
+    const sol = screen.getByRole('button', {
+      name: /Sol Deep Analysis/i,
+    })
+
+    expect(terra.getAttribute('aria-pressed')).toBe('true')
+    expect(sol.getAttribute('aria-pressed')).toBe('false')
+    expect(within(terra).getByText('Terra')).toBeTruthy()
+    expect(within(terra).getByText('Quick answers')).toBeTruthy()
+    expect(within(sol).getByText('Sol')).toBeTruthy()
+    expect(within(sol).getByText('Deep Analysis')).toBeTruthy()
+    expect(terra.querySelector('svg')).toBeTruthy()
+    expect(sol.querySelector('svg')).toBeTruthy()
+  })
+
+  it('sends deep analysis after selecting Sol', async () => {
+    const user = userEvent.setup()
+    const api = makeApi(async () => makeResponse('video-a'))
+
+    render(
+      <ChatPanel
+        videoId="video-a"
+        isReadyForChat
+        api={api}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', {
+      name: /Sol Deep Analysis/i,
+    }))
+    await user.type(screen.getByRole('textbox', {
+      name: 'Your question',
+    }), 'Compare the main ideas.')
+    await user.click(screen.getByRole('button', {
+      name: 'Send question',
+    }))
+
+    await waitFor(() => {
+      expect(api.sendMessage).toHaveBeenCalledWith({
+        video_id: 'video-a',
+        message: 'Compare the main ideas.',
+        thread_id: null,
+        analysis_mode: 'deep',
+      })
+    })
+  })
+
   it('requires a selected video', () => {
     const api = makeApi(async () => makeResponse('unused'))
 
@@ -111,6 +172,44 @@ describe('ChatPanel', () => {
       }).hasAttribute('disabled'),
     ).toBe(true)
 
+    expect(api.sendMessage).not.toHaveBeenCalled()
+  })
+
+  it('keeps analysis selection interactive while chat is unavailable', async () => {
+    const user = userEvent.setup()
+    const api = makeApi(async () => makeResponse('video-a'))
+
+    render(
+      <ChatPanel
+        videoId="video-a"
+        isReadyForChat={false}
+        api={api}
+      />,
+    )
+
+    const terra = screen.getByRole('button', {
+      name: /Terra Quick answers/i,
+    })
+    const sol = screen.getByRole('button', {
+      name: /Sol Deep Analysis/i,
+    })
+
+    expect(terra.hasAttribute('disabled')).toBe(false)
+    expect(sol.hasAttribute('disabled')).toBe(false)
+    expect(terra.getAttribute('aria-pressed')).toBe('true')
+
+    await user.click(sol)
+    expect(sol.getAttribute('aria-pressed')).toBe('true')
+    expect(terra.getAttribute('aria-pressed')).toBe('false')
+
+    terra.focus()
+    await user.keyboard('{Enter}')
+    expect(terra.getAttribute('aria-pressed')).toBe('true')
+    expect(sol.getAttribute('aria-pressed')).toBe('false')
+
+    expect(screen.getByRole('button', {
+      name: 'Send question',
+    }).hasAttribute('disabled')).toBe(true)
     expect(api.sendMessage).not.toHaveBeenCalled()
   })
 
