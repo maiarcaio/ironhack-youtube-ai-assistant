@@ -1,4 +1,7 @@
 
+import { Fragment } from 'react'
+import type { ReactNode } from 'react'
+
 import type { ChatSource } from '../../types/chat'
 import { SourceCitation } from './SourceCitation'
 
@@ -31,6 +34,38 @@ interface ChatMessageProps {
   onSeek?: (seconds: number) => void
 }
 
+function renderInlineFormatting(text: string): ReactNode[] {
+  return text
+    .split(/(\*\*[^*\n]+\*\*|\*[^*\n]+\*)/g)
+    .filter(Boolean)
+    .map((part, index) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return <strong key={index}>{part.slice(2, -2)}</strong>
+      }
+
+      if (part.startsWith('*') && part.endsWith('*')) {
+        return <em key={index}>{part.slice(1, -1)}</em>
+      }
+
+      return part
+    })
+}
+
+function FormattedAssistantText({ text }: { text: string }) {
+  return text
+    .split(/\r?\n(?:[ \t]*\r?\n)+/)
+    .map((paragraph, paragraphIndex) => (
+      <p key={paragraphIndex}>
+        {paragraph.split(/\r?\n/).map((line, lineIndex) => (
+          <Fragment key={lineIndex}>
+            {lineIndex > 0 && <br />}
+            {renderInlineFormatting(line)}
+          </Fragment>
+        ))}
+      </p>
+    ))
+}
+
 // Display one message without making network requests.
 export function ChatMessage({
   message,
@@ -57,9 +92,13 @@ export function ChatMessage({
         )}
       </header>
 
-      <div className="vm-chat-message-body">
+      <div
+        className={`vm-chat-message-body${isAssistant ? ' vm-chat-message-body--formatted' : ''}`}
+      >
         {message.text.trim()
-          ? message.text
+          ? isAssistant
+            ? <FormattedAssistantText text={message.text} />
+            : message.text
           : isAssistant
             ? 'No answer was returned by the API.'
             : ''}

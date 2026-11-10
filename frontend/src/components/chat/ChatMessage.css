@@ -57,6 +57,18 @@
   line-height: 1.7;
 }
 
+.vm-chat-message-body--formatted {
+  white-space: normal;
+}
+
+.vm-chat-message-body--formatted p {
+  margin: 0 0 0.85rem;
+}
+
+.vm-chat-message-body--formatted p:last-child {
+  margin-bottom: 0;
+}
+
 .vm-chat-message-evidence {
   margin-top: 1.25rem;
   padding-top: 1rem;

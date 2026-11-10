@@ -132,14 +132,13 @@ function App({ session = null }: AppProps) {
     }
 
     if (activePage === 'transcript') {
-      setActivePage('workspace')
-
-      if (!playerRef.current?.seekTo(seconds)) {
-        pendingTranscriptSeekRef.current = {
-          videoId: selectedVideo.id,
-          seconds,
-        }
+      // Wait until the workspace is visible before sending the request to its
+      // player, which remains mounted while the transcript is shown.
+      pendingTranscriptSeekRef.current = {
+        videoId: selectedVideo.id,
+        seconds,
       }
+      setActivePage('workspace')
 
       return
     }
@@ -196,6 +195,21 @@ function App({ session = null }: AppProps) {
       pendingNoteSeekRef.current = null
     }
   }, [notesOwnerKey, selectedVideoId])
+
+  useEffect(() => {
+    const pendingTranscriptSeek = pendingTranscriptSeekRef.current
+
+    if (
+      activePage !== 'workspace' ||
+      pendingTranscriptSeek?.videoId !== selectedVideoId
+    ) {
+      return
+    }
+
+    if (playerRef.current?.seekTo(pendingTranscriptSeek.seconds)) {
+      pendingTranscriptSeekRef.current = null
+    }
+  }, [activePage, selectedVideoId])
 
   const handlePlayerUnavailable = useCallback((): void => {
     const pendingTranscriptSeek = pendingTranscriptSeekRef.current
