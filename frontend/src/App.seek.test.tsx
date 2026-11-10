@@ -13,6 +13,8 @@ import { NotesProvider } from './features/notes/NotesProvider'
 const mocks = vi.hoisted(() => ({
   videoCount: 0,
   seekCalls: vi.fn(),
+  playerReady: true,
+  onPlayerReadyChange: null as ((ready: boolean) => void) | null,
 }))
 
 // Simulate the video API without contacting FastAPI.
@@ -52,6 +54,7 @@ vi.mock('./components/player/YouTubePlayer', async () => {
   interface FakePlayerProps {
     sourceUrl: string
     title: string
+    onReadyChange?: (ready: boolean) => void
   }
 
   interface FakePlayerHandle {
@@ -62,11 +65,14 @@ vi.mock('./components/player/YouTubePlayer', async () => {
     YouTubePlayer: React.forwardRef<
       FakePlayerHandle,
       FakePlayerProps
-    >(function FakePlayer({ sourceUrl, title }, ref) {
+    >(function FakePlayer({ sourceUrl, title, onReadyChange }, ref) {
+      mocks.onPlayerReadyChange = onReadyChange ?? null
+
       React.useImperativeHandle(
         ref,
         () => ({
           seekTo(seconds: number): boolean {
+            if (!mocks.playerReady) return false
             mocks.seekCalls({ sourceUrl, seconds })
             return true
           },
@@ -77,6 +83,15 @@ vi.mock('./components/player/YouTubePlayer', async () => {
       return (
         <div data-testid="test-youtube-player">
           {title}
+          <button
+            type="button"
+            onClick={() => {
+              mocks.playerReady = true
+              mocks.onPlayerReadyChange?.(true)
+            }}
+          >
+            Mark player ready
+          </button>
         </div>
       )
     }),
@@ -111,9 +126,26 @@ vi.mock('./components/chat/ChatPanel', () => ({
   ),
 }))
 
+vi.mock('./components/layout/SupplementalViews', () => ({
+  SearchableTranscriptView: ({
+    onSeek,
+  }: {
+    onSeek?: (seconds: number) => void
+  }) => (
+    <section aria-label="Searchable transcript">
+      <button type="button" onClick={() => onSeek?.(85)}>
+        Jump to transcript timestamp
+      </button>
+    </section>
+  ),
+  SettingsView: () => <section aria-label="Settings" />,
+}))
+
 beforeEach(() => {
   mocks.videoCount = 0
   mocks.seekCalls.mockClear()
+  mocks.playerReady = true
+  mocks.onPlayerReadyChange = null
 })
 
 afterEach(() => {
@@ -265,6 +297,68 @@ describe('App citation-to-player navigation', () => {
     expect(mocks.seekCalls).toHaveBeenNthCalledWith(2, {
       sourceUrl: 'https://youtu.be/dQw4w9WgXcQ',
       seconds: 155,
+    })
+  })
+
+  it('opens the current video and seeks from a transcript timestamp', async () => {
+    renderApp()
+
+    const user = await addVideo(
+      'https://youtu.be/jfKfPfyJRdk',
+    )
+
+    await user.click(
+      await screen.findByRole('button', {
+        name: /Video One/i,
+      }),
+    )
+
+    await user.click(screen.getByRole('button', {
+      name: 'Searchable Transcript',
+    }))
+
+    await user.click(screen.getByRole('button', {
+      name: 'Jump to transcript timestamp',
+    }))
+
+    expect(screen.getByRole('region', {
+      name: 'Video workspace',
+    })).toBeTruthy()
+    expect(mocks.seekCalls).toHaveBeenCalledExactlyOnceWith({
+      sourceUrl: 'https://youtu.be/jfKfPfyJRdk',
+      seconds: 85,
+    })
+  })
+
+  it('waits for the current player before seeking a transcript timestamp', async () => {
+    mocks.playerReady = false
+    renderApp()
+
+    const user = await addVideo(
+      'https://youtu.be/jfKfPfyJRdk',
+    )
+
+    await user.click(
+      await screen.findByRole('button', {
+        name: /Video One/i,
+      }),
+    )
+    await user.click(screen.getByRole('button', {
+      name: 'Searchable Transcript',
+    }))
+    await user.click(screen.getByRole('button', {
+      name: 'Jump to transcript timestamp',
+    }))
+
+    expect(mocks.seekCalls).not.toHaveBeenCalled()
+
+    await user.click(screen.getByRole('button', {
+      name: 'Mark player ready',
+    }))
+
+    expect(mocks.seekCalls).toHaveBeenCalledExactlyOnceWith({
+      sourceUrl: 'https://youtu.be/jfKfPfyJRdk',
+      seconds: 85,
     })
   })
 })

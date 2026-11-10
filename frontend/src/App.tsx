@@ -89,6 +89,10 @@ function App({ session = null }: AppProps) {
    * than interacting directly with the player.
    */
   const playerRef = useRef<YouTubePlayerHandle>(null)
+  const pendingTranscriptSeekRef = useRef<{
+    videoId: string
+    seconds: number
+  } | null>(null)
   const pendingNoteSeekRef = useRef<{
     requestId: number
     ownerKey: string
@@ -112,7 +116,9 @@ function App({ session = null }: AppProps) {
    */
   function handleSeekToSource(seconds: number): void {
     if (
-      (activePage !== 'workspace' && activePage !== 'qa') ||
+      (activePage !== 'workspace' &&
+        activePage !== 'qa' &&
+        activePage !== 'transcript') ||
       !selectedVideo
     ) {
       return
@@ -122,6 +128,19 @@ function App({ session = null }: AppProps) {
       !Number.isFinite(seconds) ||
       seconds < 0
     ) {
+      return
+    }
+
+    if (activePage === 'transcript') {
+      setActivePage('workspace')
+
+      if (!playerRef.current?.seekTo(seconds)) {
+        pendingTranscriptSeekRef.current = {
+          videoId: selectedVideo.id,
+          seconds,
+        }
+      }
+
       return
     }
 
@@ -156,6 +175,14 @@ function App({ session = null }: AppProps) {
   const handlePlayerReadyChange = useCallback((ready: boolean): void => {
     if (!ready) return
 
+    const pendingTranscriptSeek = pendingTranscriptSeekRef.current
+    if (
+      pendingTranscriptSeek?.videoId === selectedVideoId &&
+      playerRef.current?.seekTo(pendingTranscriptSeek.seconds)
+    ) {
+      pendingTranscriptSeekRef.current = null
+    }
+
     const pending = pendingNoteSeekRef.current
     if (
       !pending ||
@@ -171,6 +198,11 @@ function App({ session = null }: AppProps) {
   }, [notesOwnerKey, selectedVideoId])
 
   const handlePlayerUnavailable = useCallback((): void => {
+    const pendingTranscriptSeek = pendingTranscriptSeekRef.current
+    if (pendingTranscriptSeek?.videoId === selectedVideoId) {
+      pendingTranscriptSeekRef.current = null
+    }
+
     const pending = pendingNoteSeekRef.current
     if (pending?.videoId === selectedVideoId) {
       pendingNoteSeekRef.current = null
@@ -180,6 +212,16 @@ function App({ session = null }: AppProps) {
   function getPlaybackTime(): number | null {
     return playerRef.current?.getCurrentTime() ?? null
   }
+
+  useEffect(() => {
+    const pendingTranscriptSeek = pendingTranscriptSeekRef.current
+    if (
+      pendingTranscriptSeek &&
+      pendingTranscriptSeek.videoId !== selectedVideoId
+    ) {
+      pendingTranscriptSeekRef.current = null
+    }
+  }, [selectedVideoId])
 
   useEffect(() => {
     const pending = pendingNoteSeekRef.current
@@ -602,6 +644,7 @@ function App({ session = null }: AppProps) {
           videos={videos}
           selectedVideo={selectedVideo}
           onNavigate={setActivePage}
+          onSeek={handleSeekToSource}
         />
       )}
       {activePage === 'notes' && (
