@@ -2,7 +2,7 @@
 // @vitest-environment jsdom
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
 import App from './App'
@@ -68,11 +68,24 @@ vi.mock('./components/player/YouTubePlayer', async () => {
     >(function FakePlayer({ sourceUrl, title, onReadyChange }, ref) {
       mocks.onPlayerReadyChange = onReadyChange ?? null
 
+      React.useEffect(() => {
+        if (mocks.playerReady) {
+          onReadyChange?.(true)
+        }
+      }, [onReadyChange])
+
       React.useImperativeHandle(
         ref,
         () => ({
           seekTo(seconds: number): boolean {
-            if (!mocks.playerReady) return false
+            if (
+              !mocks.playerReady ||
+              document.querySelector<HTMLElement>(
+                '.vm-workspace-mounted',
+              )?.hidden
+            ) {
+              return false
+            }
             mocks.seekCalls({ sourceUrl, seconds })
             return true
           },
@@ -324,9 +337,39 @@ describe('App citation-to-player navigation', () => {
     expect(screen.getByRole('region', {
       name: 'Video workspace',
     })).toBeTruthy()
-    expect(mocks.seekCalls).toHaveBeenCalledExactlyOnceWith({
-      sourceUrl: 'https://youtu.be/jfKfPfyJRdk',
-      seconds: 85,
+    await waitFor(() => {
+      expect(mocks.seekCalls).toHaveBeenCalledExactlyOnceWith({
+        sourceUrl: 'https://youtu.be/jfKfPfyJRdk',
+        seconds: 85,
+      })
+    })
+  })
+
+  it('queues a transcript seek until the workspace becomes visible', async () => {
+    renderApp()
+
+    const user = await addVideo(
+      'https://youtu.be/jfKfPfyJRdk',
+    )
+
+    await user.click(
+      await screen.findByRole('button', {
+        name: /Video One/i,
+      }),
+    )
+
+    await user.click(screen.getByRole('button', {
+      name: 'Searchable Transcript',
+    }))
+    await user.click(screen.getByRole('button', {
+      name: 'Jump to transcript timestamp',
+    }))
+
+    await waitFor(() => {
+      expect(mocks.seekCalls).toHaveBeenCalledExactlyOnceWith({
+        sourceUrl: 'https://youtu.be/jfKfPfyJRdk',
+        seconds: 85,
+      })
     })
   })
 

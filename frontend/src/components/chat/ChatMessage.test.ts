@@ -55,6 +55,37 @@ describe('ChatMessage', () => {
     )
   })
 
+  it('renders basic assistant Markdown as semantic text formatting', () => {
+    const message: ConversationMessage = {
+      ...assistantMessage,
+      text: '**Main insight:**\n\nFirst paragraph.\nSecond line with *emphasis*.',
+      sources: [],
+    }
+
+    const html = renderToStaticMarkup(
+      createElement(ChatMessage, { message }),
+    )
+
+    expect(html).toContain('<strong>Main insight:</strong>')
+    expect(html).toContain('<p>First paragraph.<br/>Second line with <em>emphasis</em>.</p>')
+    expect(html).not.toContain('**Main insight:**')
+  })
+
+  it('keeps incomplete streamed emphasis readable', () => {
+    const message: ConversationMessage = {
+      ...assistantMessage,
+      text: '**Main insight',
+      sources: [],
+    }
+
+    const html = renderToStaticMarkup(
+      createElement(ChatMessage, { message }),
+    )
+
+    expect(html).toContain('**Main insight')
+    expect(html).not.toContain('<strong>')
+  })
+
   it('renders source evidence using SourceCitation', () => {
     const html = renderToStaticMarkup(
       createElement(ChatMessage, {
