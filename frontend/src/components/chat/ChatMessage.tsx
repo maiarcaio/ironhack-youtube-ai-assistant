@@ -7,6 +7,12 @@ import { SourceCitation } from './SourceCitation'
 
 import './ChatMessage.css'
 
+export type AssistantMessageStatus =
+  | 'pending'
+  | 'streaming'
+  | 'complete'
+  | 'error'
+
 // A discriminated union describes our two message types.
 //
 // A user message contains a question.
@@ -25,6 +31,7 @@ export type ConversationMessage =
       text: string
       sources: ChatSource[]
       insufficient_evidence: boolean
+      status?: AssistantMessageStatus
     }
 
 interface ChatMessageProps {
@@ -100,7 +107,9 @@ export function ChatMessage({
             ? <FormattedAssistantText text={message.text} />
             : message.text
           : isAssistant
-            ? 'No answer was returned by the API.'
+            ? message.status === 'complete' || message.status === undefined
+              ? 'No answer was returned by the API.'
+              : null
             : ''}
       </div>
 

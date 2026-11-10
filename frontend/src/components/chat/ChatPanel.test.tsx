@@ -24,6 +24,7 @@ import type {
   ChatRequest,
   ChatResponse,
 } from '../../types/chat'
+import type { StreamCallbacks } from '../../services/api/videomindBackend'
 
 import { ChatPanel } from './ChatPanel'
 
@@ -67,6 +68,137 @@ function makeApi(
 }
 
 describe('ChatPanel', () => {
+  it('keeps an in-flight stream empty until its first token arrives', async () => {
+    const user = userEvent.setup()
+    let callbacks!: StreamCallbacks
+    const stream = vi.fn(async (
+      _request: ChatRequest,
+      next: StreamCallbacks,
+    ) => {
+      callbacks = next
+      await new Promise<void>(() => undefined)
+    })
+    const api = makeApi(async () => makeResponse('video-a'))
+
+    render(
+      <ChatPanel
+        videoId="video-a"
+        isReadyForChat
+        api={api}
+        stream={stream}
+      />,
+    )
+
+    await user.type(screen.getByRole('textbox', { name: 'Your question' }), 'What is the answer?')
+    await user.click(screen.getByRole('button', { name: 'Send question' }))
+
+    expect(screen.queryByText('No answer was returned by the API.')).toBeNull()
+    expect(screen.getByRole('status').textContent).toContain('Streaming answer')
+
+    callbacks.onToken?.('First ')
+    callbacks.onToken?.('answer.')
+    expect(await screen.findByText('First answer.')).toBeTruthy()
+    expect(screen.queryByText('No answer was returned by the API.')).toBeNull()
+
+    callbacks.onSources?.([{
+      chunk_id: 'stream-citation',
+      excerpt: 'Streamed evidence',
+      start_seconds: 12,
+      end_seconds: 18,
+      source_type: 'transcript',
+    }])
+    expect(await screen.findByText('Streamed evidence')).toBeTruthy()
+
+    callbacks.onDone?.({
+      thread_id: 'thread-video-a',
+      answer: 'Authoritative final answer.',
+      model_used: null,
+      insufficient_evidence: false,
+    })
+    expect(await screen.findByText('Authoritative final answer.')).toBeTruthy()
+  })
+
+  it('shows an empty fallback only after successful empty completion', async () => {
+    const user = userEvent.setup()
+    let callbacks!: StreamCallbacks
+    const stream = vi.fn(async (
+      _request: ChatRequest,
+      next: StreamCallbacks,
+    ) => {
+      callbacks = next
+      await new Promise<void>(() => undefined)
+    })
+    const api = makeApi(async () => makeResponse('video-a'))
+
+    render(<ChatPanel videoId="video-a" isReadyForChat api={api} stream={stream} />)
+    await user.type(screen.getByRole('textbox', { name: 'Your question' }), 'Empty?')
+    await user.click(screen.getByRole('button', { name: 'Send question' }))
+    expect(screen.queryByText('No answer was returned by the API.')).toBeNull()
+
+    callbacks.onDone?.({
+      thread_id: 'thread-video-a',
+      answer: '',
+      model_used: null,
+      insufficient_evidence: false,
+    })
+    expect(await screen.findByText('No answer was returned by the API.')).toBeTruthy()
+  })
+
+  it('preserves partial text and reports terminal stream errors', async () => {
+    const user = userEvent.setup()
+    let callbacks!: StreamCallbacks
+    let rejectStream!: (error: Error) => void
+    const stream = vi.fn((_request: ChatRequest, next: StreamCallbacks) => {
+      callbacks = next
+      return new Promise<void>((_resolve, reject) => {
+        rejectStream = reject
+      })
+    })
+    const api = makeApi(async () => makeResponse('video-a'))
+
+    render(<ChatPanel videoId="video-a" isReadyForChat api={api} stream={stream} />)
+    await user.type(screen.getByRole('textbox', { name: 'Your question' }), 'Fail?')
+    await user.click(screen.getByRole('button', { name: 'Send question' }))
+    callbacks.onToken?.('Partial answer')
+    rejectStream(new Error('Stream interrupted'))
+
+    expect(await screen.findByText('Partial answer')).toBeTruthy()
+    expect((await screen.findByRole('alert')).textContent).toContain('Stream interrupted')
+    expect(screen.queryByText('No answer was returned by the API.')).toBeNull()
+  })
+
+  it('keeps streaming answers isolated when switching videos', async () => {
+    const user = userEvent.setup()
+    const callbacksByVideo = new Map<string, StreamCallbacks>()
+    const stream = vi.fn(async (
+      request: ChatRequest,
+      next: StreamCallbacks,
+    ) => {
+      callbacksByVideo.set(request.video_id, next)
+      await new Promise<void>(() => undefined)
+    })
+    const api = makeApi(async () => makeResponse('unused'))
+    const view = render(
+      <ChatPanel videoId="video-a" isReadyForChat api={api} stream={stream} />,
+    )
+
+    await user.type(screen.getByRole('textbox', { name: 'Your question' }), 'Question A')
+    await user.click(screen.getByRole('button', { name: 'Send question' }))
+
+    view.rerender(<ChatPanel videoId="video-b" isReadyForChat api={api} stream={stream} />)
+    await user.type(screen.getByRole('textbox', { name: 'Your question' }), 'Question B')
+    await user.click(screen.getByRole('button', { name: 'Send question' }))
+
+    callbacksByVideo.get('video-b')?.onToken?.('Answer B')
+    expect(await screen.findByText('Answer B')).toBeTruthy()
+    callbacksByVideo.get('video-a')?.onToken?.('Answer A')
+    expect(screen.queryByText('Answer A')).toBeNull()
+
+    view.rerender(<ChatPanel videoId="video-a" isReadyForChat api={api} stream={stream} />)
+    expect(await screen.findByText('Answer A')).toBeTruthy()
+    expect(screen.queryByText('Answer B')).toBeNull()
+  })
+
   it('presents Terra and Sol as structured analysis choices', () => {
     const api = makeApi(async () => makeResponse('video-a'))
 
