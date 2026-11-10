@@ -56,4 +56,19 @@ describe('AudioPlayer', () => {
       'Audio playback unavailable.',
     )
   })
+
+  it('ignores an older signed playback response after refresh', async () => {
+    let resolveFirst!: (value: { video_id: string; url: string; expires_in: number; media_type: 'audio' }) => void
+    const first = new Promise<{ video_id: string; url: string; expires_in: number; media_type: 'audio' }>((resolve) => { resolveFirst = resolve })
+    const getPlayback = vi.fn().mockReturnValueOnce(first).mockResolvedValueOnce({
+      video_id: 'audio-uuid', url: 'https://storage.example.test/new', expires_in: 3600, media_type: 'audio' as const,
+    })
+    const ref = createRef<AudioPlayerHandle>()
+    const view = render(<AudioPlayer ref={ref} videoId="audio-a" title="Lecture" getPlayback={getPlayback} />)
+    await screen.findByText('Loading authenticated audio playback…')
+    view.rerender(<AudioPlayer ref={ref} videoId="audio-uuid" title="Lecture" getPlayback={getPlayback} />)
+    const audio = await screen.findByLabelText('Audio player: Lecture')
+    resolveFirst({ video_id: 'audio-uuid', url: 'https://storage.example.test/old', expires_in: 3600, media_type: 'audio' })
+    expect((audio as HTMLAudioElement).src).toContain('/new')
+  })
 })
