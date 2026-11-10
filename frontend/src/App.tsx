@@ -11,6 +11,9 @@ import { TranscriptUploadPanel } from './components/workspace/TranscriptUploadPa
 import { ChatPanel } from './components/chat/ChatPanel'
 import { QAAssistantView } from './components/chat/QAAssistantView'
 import { AddVideoModal } from './components/video/AddVideoModal'
+import { AudioUploadModal } from './components/video/AudioUploadModal'
+import { AudioPlayer } from './components/player/AudioPlayer'
+import { isUploadedAudioSource } from './services/api/audioUpload'
 import { VideoLibraryView } from './components/video/VideoLibraryView'
 import { SavedNotesView } from './components/notes/SavedNotesView'
 import { WorkspaceNotesPanel } from './components/notes/WorkspaceNotesPanel'
@@ -67,6 +70,7 @@ function App({ session = null }: AppProps) {
   // Video submission and library search.
   const [videoUrl, setVideoUrl] = useState('')
   const [isAddVideoOpen, setIsAddVideoOpen] = useState(false)
+  const [isAudioUploadOpen, setIsAudioUploadOpen] = useState(false)
 
   // Request and error states.
   const [isSubmitting, setIsSubmitting] =
@@ -74,6 +78,7 @@ function App({ session = null }: AppProps) {
 
   const [submissionError, setSubmissionError] =
     useState<string | null>(null)
+  const [audioUploadError, setAudioUploadError] = useState<string | null>(null)
 
   const [pollingErrors, setPollingErrors] =
     useState<Record<string, string>>({})
@@ -427,6 +432,22 @@ function App({ session = null }: AppProps) {
     }
   }
 
+  async function handleAudioUpload(file: File): Promise<void> {
+    if (isSubmitting || useMockApi) return
+    setIsSubmitting(true)
+    setAudioUploadError(null)
+    try {
+      const response = await activeVideoApi.uploadAudio(file)
+      await loadLibrary()
+      setSelectedVideoId(response.video_id)
+      setIsAudioUploadOpen(false)
+    } catch (caughtError) {
+      setAudioUploadError(caughtError instanceof Error ? caughtError.message : 'Unable to upload audio.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   // Open a video from the library.
   function handleSelectVideo(
     videoId: string,
@@ -604,6 +625,7 @@ function App({ session = null }: AppProps) {
           isMockMode={useMockApi}
           onSelectVideo={handleSelectVideo}
           onOpenAddVideo={() => setIsAddVideoOpen(true)}
+          onOpenAudioUpload={() => { setAudioUploadError(null); setIsAudioUploadOpen(true) }}
         />
       )}
 
@@ -625,11 +647,12 @@ function App({ session = null }: AppProps) {
             isMockMode={useMockApi}
             onBack={() => setActivePage('library')}
             onTranscript={() => setActivePage('transcript')}
+            player={selectedVideo && isUploadedAudioSource(selectedVideo.source_url) ? <AudioPlayer videoId={selectedVideo.id} title={selectedVideo.title} getPlayback={activeVideoApi.getAudioPlayback} ref={playerRef as never} /> : undefined}
           >
             {assistantPanel}
           </QAAssistantView>
         ) : (
-        <VideoWorkspaceView
+          <VideoWorkspaceView
           ref={playerRef}
           video={selectedVideo}
           notesCount={selectedVideo
@@ -647,7 +670,8 @@ function App({ session = null }: AppProps) {
           onPlayerReadyChange={handlePlayerReadyChange}
           onPlayerUnavailable={handlePlayerUnavailable}
           onOpenAssistant={() => setActivePage('qa')}
-          onBack={() => setActivePage('library')}
+            onBack={() => setActivePage('library')}
+            player={selectedVideo && isUploadedAudioSource(selectedVideo.source_url) ? <AudioPlayer videoId={selectedVideo.id} title={selectedVideo.title} getPlayback={activeVideoApi.getAudioPlayback} ref={playerRef as never} onReadyChange={handlePlayerReadyChange} onUnavailable={handlePlayerUnavailable} /> : undefined}
         >
           {assistantPanel}
         </VideoWorkspaceView>
@@ -683,6 +707,7 @@ function App({ session = null }: AppProps) {
         onVideoUrlChange={setVideoUrl}
         onSubmit={handleSubmit}
       />
+      <AudioUploadModal isOpen={isAudioUploadOpen} isSubmitting={isSubmitting} isMockMode={useMockApi} error={audioUploadError} onClose={() => { setIsAudioUploadOpen(false); setAudioUploadError(null) }} onUpload={handleAudioUpload} />
     </VideoMindShell>
   )
 }

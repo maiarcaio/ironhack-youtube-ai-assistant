@@ -29,6 +29,13 @@ export interface IngestVideoResponse {
   status: VideoStatus
 }
 
+export interface AudioPlaybackResponse {
+  video_id: string
+  url: string
+  expires_in: number
+  media_type: 'audio'
+}
+
 // Normalized status response used by our frontend.
 export interface VideoStatusResponse {
   video_id: string

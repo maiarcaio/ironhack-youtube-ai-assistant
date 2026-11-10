@@ -2,6 +2,7 @@
 import type { VideoApi } from './VideoApi'
 
 import type {
+  AudioPlaybackResponse,
   IngestVideoRequest,
   IngestVideoResponse,
   VideoListResponse,
@@ -9,6 +10,7 @@ import type {
 } from '../../types/video'
 
 import {
+  validateAudioPlaybackResponse,
   validateIngestVideoResponse,
   validateVideoListResponse,
   validateVideoStatusResponse,
@@ -148,6 +150,37 @@ export function createAuthenticatedVideoApi(
       )
 
       return validateIngestVideoResponse(result)
+    },
+
+    async uploadAudio(file: File): Promise<IngestVideoResponse> {
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const result = await requestJson(
+        '/api/v1/videos/upload',
+        {
+          method: 'POST',
+          body: formData,
+        },
+      )
+
+      return validateIngestVideoResponse(result)
+    },
+
+    async getAudioPlayback(
+      videoId: string,
+    ): Promise<AudioPlaybackResponse> {
+      const result = await requestJson(
+        `/api/v1/videos/${encodeURIComponent(videoId)}/playback`,
+      )
+
+      const playback = validateAudioPlaybackResponse(result)
+
+      if (playback.video_id !== videoId) {
+        throw new Error('Audio playback response did not match the requested recording.')
+      }
+
+      return playback
     },
 
     async getVideoStatus(

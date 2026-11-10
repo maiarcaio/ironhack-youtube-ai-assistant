@@ -290,4 +290,44 @@ test.describe('VideoMind authenticated browser workflow — simulated', () => {
     await expect(page.getByRole('alert')).toHaveText(/session has expired/i)
     await expect(page.getByText('Your library starts here')).toBeVisible()
   })
+
+  test('uploads authenticated M4A audio, polls to Ready, and uses signed playback', async ({ page }) => {
+    const audioUuid = '66666666-6666-4666-8666-666666666666'
+    let library: Array<Record<string, string>> = []
+    let statusCalls = 0
+    let uploadAuthorization = ''
+    let uploadBody = ''
+
+    await page.route('http://supabase.test/auth/v1/token**', async (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(sessionResponse('a@example.test', TOKEN_A)) }))
+    await page.route(`${API}/api/v1/videos`, async (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ videos: library }) }))
+    await page.route(`${API}/api/v1/videos/upload`, async (route) => {
+      uploadAuthorization = route.request().headers().authorization ?? ''
+      uploadBody = route.request().postData() ?? ''
+      library = [{ video_id: audioUuid, title: 'QA audio recording', status: 'queued', source_url: 'storage://videomind-videos/user/audio-qa.m4a' }]
+      await route.fulfill({ status: 202, contentType: 'application/json', body: JSON.stringify({ video_id: audioUuid, status: 'queued' }) })
+    })
+    await page.route(`${API}/api/v1/videos/${audioUuid}/status`, async (route) => {
+      statusCalls += 1
+      const status = statusCalls < 2 ? 'queued' : statusCalls < 3 ? 'processing' : 'completed'
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ video_id: audioUuid, status, error: null }) })
+    })
+    await page.route(`${API}/api/v1/videos/${audioUuid}/playback`, async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ video_id: audioUuid, url: 'https://storage.example.test/signed-audio', expires_in: 3600, media_type: 'audio' }) })
+    })
+
+    await page.goto('/')
+    await signIn(page)
+    await page.getByRole('button', { name: 'Upload Audio' }).click()
+    await page.getByLabel('Close audio upload dialog').isVisible()
+    await page.locator('input[type="file"]').setInputFiles({ name: 'videomind_audio_QA.m4a', mimeType: 'audio/mp4', buffer: Buffer.from('m4a') })
+    await page.getByRole('button', { name: 'Upload audio', exact: true }).click()
+    await expect.poll(() => uploadAuthorization).toBe(`Bearer ${TOKEN_A}`)
+    expect(uploadBody).toContain('filename="videomind_audio_QA.m4a"')
+    await expect(page.getByRole('button', { name: 'QA audio recording' })).toBeVisible()
+    await page.getByRole('button', { name: 'QA audio recording' }).click()
+    await expect(page.getByRole('button', { name: 'Send question' })).toBeDisabled()
+    await expect(page.getByText('ready', { exact: true })).toBeVisible({ timeout: 5_000 })
+    await expect(page.locator('audio[aria-label="Audio player: QA audio recording"]')).toBeVisible()
+    expect(statusCalls).toBeGreaterThanOrEqual(3)
+  })
 })

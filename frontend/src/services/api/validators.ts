@@ -1,5 +1,6 @@
 
 import type {
+  AudioPlaybackResponse,
   IngestVideoResponse,
   VideoLibraryItem,
   VideoListResponse,
@@ -62,6 +63,31 @@ export function validateIngestVideoResponse(
   return {
     video_id: value.video_id,
     status: 'queued',
+  }
+}
+
+export function validateAudioPlaybackResponse(
+  value: unknown,
+): AudioPlaybackResponse {
+  if (
+    !isRecord(value) ||
+    typeof value.video_id !== 'string' ||
+    value.video_id.trim() === '' ||
+    typeof value.url !== 'string' ||
+    !value.url.startsWith('https://') ||
+    typeof value.expires_in !== 'number' ||
+    !Number.isFinite(value.expires_in) ||
+    value.expires_in <= 0 ||
+    value.media_type !== 'audio'
+  ) {
+    throw new Error('Invalid audio playback response from the API.')
+  }
+
+  return {
+    video_id: value.video_id,
+    url: value.url,
+    expires_in: value.expires_in,
+    media_type: 'audio',
   }
 }
 

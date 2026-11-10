@@ -79,4 +79,67 @@ describe('authenticated video API adapter', () => {
       'You do not have permission to access this video.',
     )
   })
+
+  it('uploads audio as authenticated multipart form data', async () => {
+    const getAccessToken = vi.fn().mockResolvedValue('access-token')
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          video_id: 'c5c319a8-9fd7-4573-8e12-a88b95ad0550',
+          status: 'queued',
+        }),
+        { status: 202 },
+      ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const api = createAuthenticatedVideoApi(BASE_URL, getAccessToken)
+    const file = new File(['audio'], 'lecture.mp3', {
+      type: 'audio/mpeg',
+    })
+
+    await expect(api.uploadAudio(file)).resolves.toEqual({
+      video_id: 'c5c319a8-9fd7-4573-8e12-a88b95ad0550',
+      status: 'queued',
+    })
+
+    const [, options] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:8000/api/v1/videos/upload',
+      expect.objectContaining({
+        method: 'POST',
+        headers: { Authorization: 'Bearer access-token' },
+        body: expect.any(FormData),
+      }),
+    )
+    expect(options.headers).not.toHaveProperty('Content-Type')
+    expect((options.body as FormData).get('file')).toBe(file)
+  })
+
+  it('retrieves an authenticated signed audio playback URL', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          video_id: 'c5c319a8-9fd7-4573-8e12-a88b95ad0550',
+          url: 'https://storage.example.test/signed-audio-url',
+          expires_in: 3600,
+          media_type: 'audio',
+        }),
+        { status: 200 },
+      ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const api = createAuthenticatedVideoApi(
+      BASE_URL,
+      async () => 'access-token',
+    )
+
+    await expect(
+      api.getAudioPlayback('c5c319a8-9fd7-4573-8e12-a88b95ad0550'),
+    ).resolves.toMatchObject({
+      video_id: 'c5c319a8-9fd7-4573-8e12-a88b95ad0550',
+      media_type: 'audio',
+    })
+  })
 })

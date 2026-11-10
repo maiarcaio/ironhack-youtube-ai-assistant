@@ -2,6 +2,7 @@
 import type { VideoApi } from './VideoApi'
 
 import type {
+  AudioPlaybackResponse,
   IngestVideoRequest,
   IngestVideoResponse,
   VideoListResponse,
@@ -75,6 +76,14 @@ export function createHttpVideoApi(baseUrl: string): VideoApi {
       )
 
       return validateIngestVideoResponse(data)
+    },
+
+    async uploadAudio(): Promise<IngestVideoResponse> {
+      throw new Error('Audio upload requires an authenticated session.')
+    },
+
+    async getAudioPlayback(): Promise<AudioPlaybackResponse> {
+      throw new Error('Audio playback requires an authenticated session.')
     },
 
     // GET /api/v1/videos/{video_id}/status

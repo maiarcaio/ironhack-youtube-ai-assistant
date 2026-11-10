@@ -1,5 +1,6 @@
 
 import type {
+  AudioPlaybackResponse,
   IngestVideoRequest,
   IngestVideoResponse,
   VideoListResponse,
@@ -15,6 +16,10 @@ export interface VideoApi {
   ingestVideo(
     request: IngestVideoRequest,
   ): Promise<IngestVideoResponse>
+
+  uploadAudio(file: File): Promise<IngestVideoResponse>
+
+  getAudioPlayback(videoId: string): Promise<AudioPlaybackResponse>
 
   // Check whether one video has finished processing.
   getVideoStatus(

@@ -1,0 +1,27 @@
+.vm-audio-player {
+  min-height: 11rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: linear-gradient(135deg, #31302f, #1c1b1a);
+}
+
+.vm-audio-player audio {
+  width: min(100%, 42rem);
+}
+
+.vm-audio-player-loading,
+.vm-audio-player-notice {
+  color: #e7e1df;
+  font-size: 0.8125rem;
+}
+
+.vm-audio-player-notice button {
+  margin-top: 0.75rem;
+  border-radius: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  background: #9a442d;
+  color: white;
+  font-weight: 600;
+}

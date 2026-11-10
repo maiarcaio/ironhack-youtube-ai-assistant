@@ -7,6 +7,7 @@ interface Props {
   isMockMode: boolean
   onSelectVideo: (videoId: string) => void
   onOpenAddVideo: () => void
+  onOpenAudioUpload: () => void
 }
 
 type Filter = 'all' | 'in-progress' | 'completed'
@@ -19,7 +20,7 @@ function statusLabel(video: Video, isMockMode: boolean): string {
   return 'Waiting for processing'
 }
 
-export function VideoLibraryView({ videos, selectedVideoId, isMockMode, onSelectVideo, onOpenAddVideo }: Props) {
+export function VideoLibraryView({ videos, selectedVideoId, isMockMode, onSelectVideo, onOpenAddVideo, onOpenAudioUpload }: Props) {
   const [filter, setFilter] = useState<Filter>('all')
   const [query, setQuery] = useState('')
   const filtered = useMemo(() => videos.filter((video) => {
@@ -31,6 +32,7 @@ export function VideoLibraryView({ videos, selectedVideoId, isMockMode, onSelect
   const pending = videos.filter((video) => video.status === 'queued' || video.status === 'processing').length
 
   return <div className="flex flex-col gap-8 max-w-7xl mx-auto w-full pb-16">
+    <button type="button" onClick={onOpenAudioUpload} className="self-start px-4 py-3 rounded-xl bg-white border border-[#ede7e1] text-xs font-semibold">♫ Upload Audio</button>
     <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#fae8e0] via-[#f7e2d7] to-[#faeee7] p-6 sm:p-10 shadow-sm border border-[#ede7e1]">
       <div className="absolute -right-20 -top-28 w-96 h-96 rounded-full bg-[#ffdbd2]/30 pointer-events-none blur-3xl"/><div className="absolute right-48 -bottom-24 w-80 h-80 rounded-full bg-[#b2efde]/25 pointer-events-none blur-3xl"/>
       <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
