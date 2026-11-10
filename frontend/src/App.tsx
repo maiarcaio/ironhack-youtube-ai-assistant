@@ -602,6 +602,7 @@ function App({ session = null }: AppProps) {
 
   const notesPanel = selectedVideo ? (
     <WorkspaceNotesPanel
+      key={selectedVideo.id}
       video={selectedVideo}
       getPlaybackTime={getPlaybackTime}
       onOpenAllNotes={() => setActivePage('notes')}
