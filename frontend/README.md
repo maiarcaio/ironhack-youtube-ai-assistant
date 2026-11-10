@@ -76,5 +76,5 @@ Real operation depends on Diogo's deployed FastAPI service and its configured Su
 
 - Manual transcript upload appears only after automatic processing reports `failed`.
 - TXT, SRT, and VTT files are accepted up to 2 MB.
-- The backend currently does not expose readable transcript or chapter endpoints, so those frontend views remain unavailable/empty.
+- VideoMind retrieves stored transcripts directly from Supabase using authenticated, owner-scoped access. The backend still does not expose a separate transcript-read or chapter endpoint.
 - Live CORS, Supabase tokens, Render availability, YouTube embed policy, processing providers, and citation quality require staging validation with the deployed backend.
