@@ -84,7 +84,12 @@ def test_supadata_timestamps_are_milliseconds(monkeypatch):
         status_code = 200
         def raise_for_status(self): pass
         def json(self):
-            return {"content": [{"text": "Hello", "offset": 3500, "duration": 1250}]}
+            return {
+    "lang": "en",
+    "content": [
+        {"text": "Hello", "offset": 3500, "duration": 1250}
+    ],
+}
     class HTTP:
         def __init__(self, *args, **kwargs): pass
         def __enter__(self): return self
