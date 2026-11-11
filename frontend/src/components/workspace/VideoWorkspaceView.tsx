@@ -115,7 +115,7 @@ export const VideoWorkspaceView = forwardRef<
             </div>
           </section>
 
-          <aside className="vm-workspace-tools lg:col-span-4 flex flex-col rounded-2xl bg-white shadow-md border border-[#ede7e1] overflow-hidden min-h-[540px] sm:min-h-[640px]">
+          <aside className="vm-workspace-tools lg:col-span-4 flex flex-col rounded-2xl bg-white shadow-md border border-[#ede7e1] overflow-hidden">
             <div className="px-3 sm:px-4 pt-4 pb-2 bg-[#f7f3f0] border-b border-[#ede7e1] flex items-center justify-between">
               <div className="flex items-center gap-2 sm:gap-3" role="tablist" aria-label="Workspace tools">
                 <button type="button" role="tab" aria-selected={rightTab === 'ask-ai'} onClick={() => selectTool('ask-ai')} className={`relative whitespace-nowrap pb-2 text-[11px] sm:text-xs font-semibold flex items-center gap-1 ${rightTab === 'ask-ai' ? 'text-[#1c1b1a]' : 'text-[#88726d]'}`}><span aria-hidden="true" className="text-[#9a442d]">✦</span><span>Ask AI</span>{rightTab === 'ask-ai' && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#9a442d] rounded-full" />}</button>
