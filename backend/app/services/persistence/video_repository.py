@@ -1,6 +1,7 @@
 
 """Persistence operations for VideoMind AI videos."""
 
+from datetime import datetime, timezone
 from typing import Any, Literal
 from uuid import UUID, uuid4
 
@@ -70,6 +71,7 @@ def get_video(
         .select("*")
         .eq("owner_id", owner_id)
         .eq("video_id", video_id)
+        .is_("deleted_at", "null")
         .limit(1)
         .execute()
     )
@@ -79,6 +81,7 @@ def get_video(
 
 def list_videos(
     owner_id: str,
+    archived: bool = False,
 ) -> list[dict[str, Any]]:
     """List the authenticated user's videos, newest first."""
 
@@ -87,13 +90,17 @@ def list_videos(
     response = (
         get_supabase_admin_client()
         .table("videos")
-        .select("video_id,title,status,source_url")
+        .select("video_id,title,status,source_url,archived_at")
         .eq("owner_id", owner_id)
+        .is_("deleted_at", "null")
         .order("created_at", desc=True)
         .execute()
     )
 
-    return response.data
+    return [
+        video for video in (response.data or [])
+        if (video.get("archived_at") is not None) == archived
+    ]
 
 
 def update_video_status(
@@ -119,3 +126,65 @@ def update_video_status(
     )
 
     return response.data[0] if response.data else None
+
+
+
+def set_video_archived(
+    owner_id: str,
+    video_id: str,
+    archived: bool,
+) -> dict[str, Any] | None:
+    """Archive or restore an owned, non-deleted video (without losing data)."""
+    owner_id = _validate_owner_id(owner_id)
+
+    existing = get_video(owner_id=owner_id, video_id=video_id)
+    if existing is None:
+        return None
+
+    value = datetime.now(timezone.utc).isoformat() if archived else None
+    response = (
+        get_supabase_admin_client()
+        .table("videos")
+        .update({"archived_at": value})
+        .eq("owner_id", owner_id)
+        .eq("video_id", video_id)
+        .is_("deleted_at", "null")
+        .execute()
+    )
+    return response.data[0] if response.data else None
+
+
+def soft_delete_video(
+    owner_id: str,
+    video_id: str,
+) -> bool | None:
+    """Hide a video without destroying vectors, storage, or relational data.
+
+    Disallow deleting an active queued/processing job. Ownership and expected
+    status are enforced again in the write condition to avoid races.
+    Returns None when not found, False when still processing, True on success.
+    """
+    owner_id = _validate_owner_id(owner_id)
+    existing = get_video(owner_id=owner_id, video_id=video_id)
+    if existing is None:
+        return None
+
+    if existing["status"] in {"queued", "processing"}:
+        return False
+
+    response = (
+        get_supabase_admin_client()
+        .table("videos")
+        .update({
+            "deleted_at": datetime.now(timezone.utc).isoformat(),
+            "archived_at": None,
+        })
+        .eq("owner_id", owner_id)
+        .eq("video_id", video_id)
+        .eq("status", existing["status"])
+        .is_("deleted_at", "null")
+        .execute()
+    )
+    if not response.data:
+        return False
+    return True
