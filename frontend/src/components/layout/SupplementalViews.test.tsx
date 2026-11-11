@@ -29,6 +29,7 @@ const video: Video = {
 }
 
 beforeEach(() => {
+  mocks.maybeSingle.mockReset()
   mocks.from.mockReturnValue({ select: mocks.select })
   mocks.select.mockReturnValue({ eq: mocks.eq })
   mocks.eq.mockReturnValue({ maybeSingle: mocks.maybeSingle })
@@ -81,6 +82,89 @@ describe('SearchableTranscriptView', () => {
     }))
 
     expect(onSeek).toHaveBeenCalledExactlyOnceWith(1)
+  })
+
+  it('refetches when a selected video transitions to ready', async () => {
+    const user = userEvent.setup()
+    mocks.maybeSingle
+      .mockResolvedValueOnce({ data: null, error: null })
+      .mockResolvedValueOnce({
+        data: {
+          video_id: video.id,
+          content: `1
+00:00:01,000 --> 00:00:03,500
+Hello everyone.
+
+2
+00:00:04,000 --> 00:00:07,000
+Welcome to VideoMind.`,
+          format: 'srt',
+          source: 'youtube',
+        },
+        error: null,
+      })
+    const { rerender } = render(
+      <SearchableTranscriptView
+        videos={[{ ...video, status: 'processing' }]}
+        selectedVideo={{ ...video, status: 'processing' }}
+        onNavigate={vi.fn()}
+        onSeek={vi.fn()}
+      />,
+    )
+
+    expect(await screen.findByText('No transcript available')).toBeTruthy()
+    expect(mocks.maybeSingle).toHaveBeenCalledTimes(1)
+
+    rerender(
+      <SearchableTranscriptView
+        videos={[video]}
+        selectedVideo={video}
+        onNavigate={vi.fn()}
+        onSeek={vi.fn()}
+      />,
+    )
+
+    await act(async () => undefined)
+    expect(mocks.maybeSingle).toHaveBeenCalledTimes(2)
+    expect(await screen.findByText('Welcome to VideoMind.')).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: 'Jump to 00:01 in video' }))
+  })
+
+  it('clears a previous transcript error after a later successful refresh', async () => {
+    mocks.maybeSingle
+      .mockRejectedValueOnce(new Error('temporary transcript failure'))
+      .mockResolvedValueOnce({
+        data: {
+          video_id: video.id,
+          content: `1
+00:00:01,000 --> 00:00:03,500
+Recovered transcript.`,
+          format: 'srt',
+          source: 'youtube',
+        },
+        error: null,
+      })
+    const { rerender } = render(
+      <SearchableTranscriptView
+        videos={[{ ...video, status: 'processing' }]}
+        selectedVideo={{ ...video, status: 'processing' }}
+        onNavigate={vi.fn()}
+        onSeek={vi.fn()}
+      />,
+    )
+
+    expect((await screen.findByRole('alert')).textContent).toContain('temporary transcript failure')
+    rerender(
+      <SearchableTranscriptView
+        videos={[video]}
+        selectedVideo={video}
+        onNavigate={vi.fn()}
+        onSeek={vi.fn()}
+      />,
+    )
+
+    expect(await screen.findByText('Recovered transcript.')).toBeTruthy()
+    expect(screen.queryByRole('alert')).toBeNull()
   })
 
   it('filters transcript text and highlights case-insensitive matches', async () => {

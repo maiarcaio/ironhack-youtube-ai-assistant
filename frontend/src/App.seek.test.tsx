@@ -120,6 +120,7 @@ vi.mock('./components/chat/ChatPanel', () => ({
     onSeek?: (seconds: number) => void
   }) => (
     <section aria-label="Video Q&A">
+      <label>Workspace draft<input aria-label="Workspace draft" defaultValue="" /></label>
       <button type="button" onClick={() => onSeek?.(155)}>
         Jump to 02:35
       </button>
@@ -148,6 +149,17 @@ vi.mock('./components/layout/SupplementalViews', () => ({
     <section aria-label="Searchable transcript">
       <button type="button" onClick={() => onSeek?.(85)}>
         Jump to transcript timestamp
+      </button>
+    </section>
+  ),
+  TranscriptContent: ({
+    onSeek,
+  }: {
+    onSeek?: (seconds: number) => void
+  }) => (
+    <section aria-label="Workspace transcript">
+      <button type="button" onClick={() => onSeek?.(85)}>
+        Jump to workspace transcript timestamp
       </button>
     </section>
   ),
@@ -196,6 +208,25 @@ async function addVideo(url: string) {
 }
 
 describe('App citation-to-player navigation', () => {
+  it('keeps the player and chat draft mounted while switching workspace tools', async () => {
+    renderApp()
+    const user = await addVideo('https://youtu.be/jfKfPfyJRdk')
+    await user.click(await screen.findByRole('button', { name: /Video One/i }))
+
+    const player = screen.getByTestId('test-youtube-player')
+    await user.type(screen.getByRole('textbox', { name: 'Workspace draft' }), 'keep this draft')
+    const transcriptTab = screen.getByRole('tab', { name: 'Transcript' })
+    transcriptTab.focus()
+    await user.keyboard('{Enter}')
+
+    expect(screen.getByTestId('test-youtube-player')).toBe(player)
+    expect(transcriptTab.getAttribute('aria-selected')).toBe('true')
+    await user.click(screen.getByRole('button', { name: 'Q&A Assistant' }))
+    expect(screen.getByTestId('test-youtube-player')).toBe(player)
+    expect(screen.getByRole('tab', { name: 'Ask AI' }).getAttribute('aria-selected')).toBe('true')
+    expect((screen.getByRole('textbox', { name: 'Workspace draft' }) as HTMLInputElement).value).toBe('keep this draft')
+  })
+
   it('seeks to the timestamp selected in chat', async () => {
     renderApp()
 
@@ -313,7 +344,7 @@ describe('App citation-to-player navigation', () => {
     })
   })
 
-  it('opens the current video and seeks from a transcript timestamp', async () => {
+  it('keeps one workspace mounted when transcript navigation seeks a timestamp', async () => {
     renderApp()
 
     const user = await addVideo(
@@ -331,7 +362,7 @@ describe('App citation-to-player navigation', () => {
     }))
 
     await user.click(screen.getByRole('button', {
-      name: 'Jump to transcript timestamp',
+      name: 'Jump to workspace transcript timestamp',
     }))
 
     expect(screen.getByRole('region', {
@@ -345,7 +376,7 @@ describe('App citation-to-player navigation', () => {
     })
   })
 
-  it('queues a transcript seek until the workspace becomes visible', async () => {
+  it('keeps transcript navigation in the existing workspace', async () => {
     renderApp()
 
     const user = await addVideo(
@@ -362,7 +393,7 @@ describe('App citation-to-player navigation', () => {
       name: 'Searchable Transcript',
     }))
     await user.click(screen.getByRole('button', {
-      name: 'Jump to transcript timestamp',
+      name: 'Jump to workspace transcript timestamp',
     }))
 
     await waitFor(() => {
@@ -371,6 +402,7 @@ describe('App citation-to-player navigation', () => {
         seconds: 85,
       })
     })
+    expect(screen.getAllByRole('region', { name: 'Video workspace' })).toHaveLength(1)
   })
 
   it('waits for the current player before seeking a transcript timestamp', async () => {
@@ -390,7 +422,7 @@ describe('App citation-to-player navigation', () => {
       name: 'Searchable Transcript',
     }))
     await user.click(screen.getByRole('button', {
-      name: 'Jump to transcript timestamp',
+      name: 'Jump to workspace transcript timestamp',
     }))
 
     expect(mocks.seekCalls).not.toHaveBeenCalled()

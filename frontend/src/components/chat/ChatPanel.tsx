@@ -9,7 +9,10 @@ import type {
 } from '../../services/api/videomindBackend'
 
 import { ChatMessage } from './ChatMessage'
-import type { ConversationMessage } from './ChatMessage'
+import type {
+  AssistantMessageStatus,
+  ConversationMessage,
+} from './ChatMessage'
 
 import './ChatPanel.css'
 
@@ -138,6 +141,7 @@ export function ChatPanel({
       text?: string
       sources?: ChatSource[]
       insufficient_evidence?: boolean
+      status?: AssistantMessageStatus
     },
   ) {
     updateSession(videoKey, (previous) => ({
@@ -203,10 +207,14 @@ export function ChatPanel({
       messages: [...previous.messages, userMessage],
     }))
 
+    let activeAssistantId: string | null = null
+
     try {
       if (stream) {
         // Create one assistant message to update progressively.
         const assistantId = createMessageId(requestVideoId)
+        activeAssistantId = assistantId
+        const assistantStatus: AssistantMessageStatus = 'pending'
 
         const assistantMessage: ConversationMessage = {
           id: assistantId,
@@ -214,6 +222,7 @@ export function ChatPanel({
           text: '',
           sources: [],
           insufficient_evidence: false,
+          status: assistantStatus,
         }
 
         updateSession(requestVideoId, (previous) => ({
@@ -249,7 +258,7 @@ export function ChatPanel({
               updateAssistantMessage(
                 requestVideoId,
                 assistantId,
-                { text: streamedAnswer },
+                { text: streamedAnswer, status: 'streaming' },
               )
             },
 
@@ -271,6 +280,7 @@ export function ChatPanel({
                   text: result.answer,
                   insufficient_evidence:
                     result.insufficient_evidence,
+                  status: 'complete',
                 },
               )
 
@@ -306,6 +316,7 @@ export function ChatPanel({
           sources: response.sources,
           insufficient_evidence:
             response.insufficient_evidence,
+          status: 'complete',
         }
 
         updateSession(requestVideoId, (previous) => ({
@@ -327,6 +338,14 @@ export function ChatPanel({
         ...current,
         [requestVideoId]: message,
       }))
+
+      if (activeAssistantId) {
+        updateAssistantMessage(
+          requestVideoId,
+          activeAssistantId,
+          { status: 'error' },
+        )
+      }
     } finally {
       pendingRequests.current.delete(requestVideoId)
 

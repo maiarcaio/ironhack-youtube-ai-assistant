@@ -16,6 +16,12 @@ const video: Video = {
   status: 'ready',
 }
 
+const secondVideo: Video = {
+  ...video,
+  id: '22222222-2222-4222-8222-222222222222',
+  title: 'Second backend lecture',
+}
+
 beforeEach(() => localStorage.clear())
 afterEach(cleanup)
 
@@ -68,5 +74,66 @@ describe('WorkspaceNotesPanel', () => {
 
     expect(screen.getByRole('alert').textContent).toMatch(/player is ready/i)
     expect(localStorage.getItem('videomind.notes.v1.mock')).toBeNull()
+  })
+
+  it('clears an unfinished draft and error when the selected video changes', async () => {
+    const user = userEvent.setup()
+    let playbackTime: number | null = 85
+    const getPlaybackTime = vi.fn(() => playbackTime)
+    const { rerender } = render(
+      <NotesProvider owner={{ kind: 'user', userId: 'user-a' }}>
+        <WorkspaceNotesPanel
+          key={video.id}
+          video={video}
+          getPlaybackTime={getPlaybackTime}
+          onOpenAllNotes={vi.fn()}
+          onSeek={vi.fn()}
+        />
+      </NotesProvider>,
+    )
+
+    await user.type(screen.getByLabelText('Quick note'), 'Saved for video A')
+    await user.click(screen.getByRole('button', { name: 'Save quick note' }))
+    expect(screen.getByText('Saved for video A')).toBeTruthy()
+
+    await user.type(screen.getByLabelText('Quick note'), 'Draft for video A')
+    playbackTime = null
+    await user.click(screen.getByRole('button', { name: 'Save quick note' }))
+    expect(screen.getByRole('alert').textContent).toMatch(/player is ready/i)
+
+    rerender(
+      <NotesProvider owner={{ kind: 'user', userId: 'user-a' }}>
+        <WorkspaceNotesPanel
+          key={secondVideo.id}
+          video={secondVideo}
+          getPlaybackTime={() => 42}
+          onOpenAllNotes={vi.fn()}
+          onSeek={vi.fn()}
+        />
+      </NotesProvider>,
+    )
+
+    expect((screen.getByLabelText('Quick note') as HTMLTextAreaElement).value).toBe('')
+    expect(screen.queryByRole('alert')).toBeNull()
+
+    await user.type(screen.getByLabelText('Quick note'), 'Saved for video B')
+    await user.click(screen.getByRole('button', { name: 'Save quick note' }))
+    expect(screen.getByText('Saved for video B')).toBeTruthy()
+    expect(screen.queryByText('Saved for video A')).toBeNull()
+
+    rerender(
+      <NotesProvider owner={{ kind: 'user', userId: 'user-a' }}>
+        <WorkspaceNotesPanel
+          key={video.id}
+          video={video}
+          getPlaybackTime={() => 85}
+          onOpenAllNotes={vi.fn()}
+          onSeek={vi.fn()}
+        />
+      </NotesProvider>,
+    )
+
+    expect(screen.queryByText('Saved for video B')).toBeNull()
+    expect(screen.getByText('Saved for video A')).toBeTruthy()
   })
 })
