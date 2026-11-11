@@ -14,6 +14,7 @@ import {
   validateIngestVideoResponse,
   validateVideoListResponse,
   validateVideoStatusResponse,
+  validateVideoMutationResponse,
 } from './validators'
 
 // Authentication is supplied by the frontend's Supabase
@@ -217,11 +218,13 @@ export function createAuthenticatedVideoApi(
     },
 
     async archiveVideo(videoId: string): Promise<void> {
-      await requestJson(`/api/v1/videos/${encodeURIComponent(videoId)}/archive`, { method: 'POST' })
+      const result = await requestJson(`/api/v1/videos/${encodeURIComponent(videoId)}/archive`, { method: 'POST' })
+      validateVideoMutationResponse(result, videoId, true)
     },
 
     async restoreVideo(videoId: string): Promise<void> {
-      await requestJson(`/api/v1/videos/${encodeURIComponent(videoId)}/restore`, { method: 'POST' })
+      const result = await requestJson(`/api/v1/videos/${encodeURIComponent(videoId)}/restore`, { method: 'POST' })
+      validateVideoMutationResponse(result, videoId, false)
     },
 
     async deleteVideo(videoId: string): Promise<void> {

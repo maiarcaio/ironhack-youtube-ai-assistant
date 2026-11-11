@@ -6,7 +6,15 @@ import type {
   VideoListResponse,
   VideoStatus,
   VideoStatusResponse,
+  VideoMutationResponse,
 } from '../../types/video'
+
+export function validateVideoMutationResponse(value: unknown, expectedId: string, expectedArchived: boolean): VideoMutationResponse {
+  if (!isRecord(value) || value.video_id !== expectedId || value.archived !== expectedArchived) {
+    throw new Error('Invalid library mutation response from the API.')
+  }
+  return { video_id: expectedId, archived: expectedArchived }
+}
 
 // These are the status values defined in Diogo's FastAPI V1.
 type BackendVideoStatus =

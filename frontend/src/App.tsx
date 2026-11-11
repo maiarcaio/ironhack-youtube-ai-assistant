@@ -128,7 +128,6 @@ function App({ session = null }: AppProps) {
   }
 
   async function manageVideo(action: 'archive' | 'restore' | 'delete', video: Video): Promise<void> {
-    if (action === 'delete' && !window.confirm(`Remove “${video.title}” from your library? This does not permanently erase the underlying data.`)) return
     try {
       setLibraryActionError(null)
       if (action === 'archive') await activeVideoApi.archiveVideo(video.id)
