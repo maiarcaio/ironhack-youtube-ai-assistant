@@ -106,4 +106,4 @@ Frontend ownership covers React presentation, authentication integration, player
 
 ## Project requirements
 
-The project follows the Ironhack final-project expectations: a multimodal pipeline, agent and vector-database integration, documented architecture and testing, deployment evidence, evaluation against a baseline, and a 15–20 minute presentation. The presentation must distinguish measured results from planned evaluation and address correctness, hallucination control, retrieval relevance, latency, cost, memory, and future-proofing.
+The project follows the Ironhack final-project expectations: a multimodal pipeline, agent and vector-database integration, documented architecture and testing, deployment evidence, and evaluation against a baseline. Evaluation must distinguish measured results from planned work and address correctness, hallucination control, retrieval relevance, latency, cost, memory, and future-proofing.
