@@ -10,6 +10,7 @@ from app.services.persistence.supabase_client import (
 from app.services.persistence.video_repository import (
     create_video,
 )
+from app.services.ingestion.youtube_metadata import fetch_youtube_title
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +27,10 @@ def enqueue_youtube_video(
     The owner ID must come from verified authentication.
     No actual processing is performed here.
     """
+
+    # Best-effort metadata: an unavailable YouTube endpoint must not block ingestion.
+    if youtube_video_id and title == "YouTube video":
+        title = fetch_youtube_title(youtube_video_id) or title
 
     # 1. Create the video record.
     video = create_video(
