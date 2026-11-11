@@ -178,7 +178,7 @@ function validateVideoLibraryItem(
     thumbnail_url: typeof value.thumbnail_url === 'string' ? value.thumbnail_url : null,
     archived_at: value.archived_at === undefined || value.archived_at === null
       ? null
-      : typeof value.archived_at === 'string' && Number.isFinite(Date.parse(value.archived_at))
+      : typeof value.archived_at === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$/.test(value.archived_at)
         ? value.archived_at
         : (() => { throw new Error('Invalid video library response from the API.') })(),
   }
