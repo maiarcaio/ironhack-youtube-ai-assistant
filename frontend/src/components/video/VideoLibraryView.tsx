@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Video } from '../../types/video'
 import { isUploadedAudioSource } from '../../services/api/audioUpload'
 
@@ -9,13 +9,30 @@ export function VideoLibraryView({ videos, isMockMode, onSelectVideo, onOpenAddV
   const [filter, setFilter] = useState<'all' | 'in-progress' | 'completed'>('all')
   const [pending, setPending] = useState<string | null>(null)
   const [confirmVideo, setConfirmVideo] = useState<Video | null>(null)
+  const dialogRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  useEffect(() => {
+    if (!confirmVideo) { triggerRef.current?.focus(); return }
+    dialogRef.current?.focus()
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { event.preventDefault(); setConfirmVideo(null); return }
+      if (event.key !== 'Tab' || !dialogRef.current) return
+      const focusable = Array.from(dialogRef.current.querySelectorAll<HTMLElement>('button'))
+      if (!focusable.length) return
+      const first = focusable[0]; const last = focusable[focusable.length - 1]
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus() }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus() }
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [confirmVideo])
   const readyCount = videos.filter((video) => video.status === 'ready').length
   const processingCount = videos.filter((video) => video.status === 'queued' || video.status === 'processing').length
   const filtered = useMemo(() => videos.filter((video) => {
     const status = filter === 'all' || (filter === 'completed' ? video.status === 'ready' : video.status === 'queued' || video.status === 'processing')
     return status && `${video.title} ${video.source_url}`.toLowerCase().includes(query.toLowerCase())
   }), [videos, query, filter])
-  async function manage(action: 'archive' | 'restore' | 'delete', video: Video) { if (pending) return; if (action === 'delete') { setConfirmVideo(video); return } setPending(video.id); try { await onManageVideo(action, video) } finally { setPending(null) } }
+  async function manage(action: 'archive' | 'restore' | 'delete', video: Video) { if (pending) return; if (action === 'delete') { triggerRef.current = document.activeElement instanceof HTMLButtonElement ? document.activeElement : null; setConfirmVideo(video); return } setPending(video.id); try { await onManageVideo(action, video) } finally { setPending(null) } }
   async function confirmDelete() { if (!confirmVideo || pending) return; const video = confirmVideo; setConfirmVideo(null); setPending(video.id); try { await onManageVideo('delete', video) } finally { setPending(null) } }
   return <div className="flex flex-col gap-8 max-w-7xl mx-auto w-full pb-16">
     <div className="rounded-2xl bg-gradient-to-r from-[#fae8e0] to-[#faeee7] p-6 sm:p-10 border border-[#ede7e1]"><span className="text-xs font-bold">{isMockMode ? 'DEMO DATA' : 'LIVE DATA'}</span><h1 className="text-3xl sm:text-5xl font-bold">Don&apos;t just watch.<br /><span className="text-[#9a442d]">Understand everything.</span></h1><p className="mt-3 text-[#55423e]">Turn videos into searchable knowledge anchored to real sources.</p><div className="mt-5 flex flex-wrap gap-3"><button onClick={onOpenAddVideo} className="px-4 py-3 rounded-xl bg-[#31302f] text-white text-xs font-semibold" type="button">＋ Add a YouTube video</button><button onClick={onOpenAudioUpload} className="px-4 py-3 rounded-xl bg-white border text-xs font-semibold" type="button">♫ Upload Audio</button></div></div>
@@ -23,6 +40,6 @@ export function VideoLibraryView({ videos, isMockMode, onSelectVideo, onOpenAddV
       {filtered.length === 0 ? <div className="rounded-2xl border border-dashed p-12 text-center text-sm text-[#615e5c]">No videos in this collection.<span className="sr-only">Your library starts here</span></div> : <div className="grid grid-cols-1 md:grid-cols-3 gap-5">{filtered.map((video) => { const audio = isUploadedAudioSource(video.source_url); const busy = pending === video.id; return <article key={video.id} className="relative overflow-visible rounded-2xl border bg-white shadow-xs"><button type="button" onClick={() => { if (collection === "active") onSelectVideo(video.id) }} className="w-full text-left" aria-label={video.title} title={video.title}><div className="relative h-44 bg-gradient-to-br from-[#1e3a34] to-[#0c1c19]">{video.thumbnail_url && <img src={video.thumbnail_url} alt="" className="absolute inset-0 h-full w-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none' }} />}<div className="flex h-full items-center justify-center text-5xl text-[#ffdbd2]">{audio ? '♫' : '▷'}</div></div><div className="p-4"><h3 className="line-clamp-2 text-sm font-semibold">{video.title}</h3><p className="mt-2 text-xs text-[#88726d]">{audio ? 'Audio' : 'YouTube'} · {video.status === 'failed' ? 'Processing failed — recovery available' : video.status}</p></div></button><details className="absolute right-3 top-3 z-10"><summary aria-label={`Actions for ${video.title}`} className="cursor-pointer rounded-full bg-black/60 px-3 py-1 text-white">⋯</summary><div className="absolute right-0 mt-1 flex w-44 flex-col rounded-xl border bg-white p-2 shadow-xl"><button type="button" disabled={busy} onClick={() => void manage(collection === 'archived' ? 'restore' : 'archive', video)} className="rounded-lg p-2 text-left text-xs hover:bg-[#f1edea]">{busy ? 'Working…' : collection === 'archived' ? 'Restore' : 'Archive'}</button><button type="button" disabled={busy} onClick={() => void manage('delete', video)} className="rounded-lg p-2 text-left text-xs text-[#93000a] hover:bg-[#fff0e9]">Remove from library</button></div></details></article> })}</div>}
       <div className="grid grid-cols-3 gap-3 rounded-2xl bg-white p-5 border"><div className="rounded-xl bg-[#f7f3f0] p-3 text-center"><strong className="block text-xl text-[#2d685b]">{videos.length}</strong><span className="text-[10px]">Videos</span></div><div className="rounded-xl bg-[#f7f3f0] p-3 text-center"><strong className="block text-xl text-[#2d685b]">{readyCount}</strong><span className="text-[10px]">Ready</span></div><div className="rounded-xl bg-[#f7f3f0] p-3 text-center"><strong className="block text-xl text-[#2d685b]">{processingCount}</strong><span className="text-[10px]">Processing</span></div></div>
     </section>
-    {confirmVideo && <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setConfirmVideo(null) }}><div role="dialog" aria-modal="true" aria-labelledby="remove-video-title" className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"><h2 id="remove-video-title" className="text-lg font-bold">Remove video from library?</h2><p className="mt-3 text-sm text-[#55423e]">Remove <strong>{confirmVideo.title}</strong> from your library. The underlying data is not permanently erased, but this application cannot restore it after removal.</p><div className="mt-6 flex justify-end gap-3"><button type="button" onClick={() => setConfirmVideo(null)} className="rounded-xl border px-4 py-2 text-sm">Cancel</button><button type="button" onClick={() => void confirmDelete()} className="rounded-xl bg-[#9a442d] px-4 py-2 text-sm font-semibold text-white">Remove</button></div></div></div>}
+    {confirmVideo && <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setConfirmVideo(null) }}><div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="remove-video-title" className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"><h2 id="remove-video-title" className="text-lg font-bold">Remove video from library?</h2><p className="mt-3 text-sm text-[#55423e]">Remove <strong>{confirmVideo.title}</strong> from your library. The underlying data is not permanently erased, but this application cannot restore it after removal.</p><div className="mt-6 flex justify-end gap-3"><button type="button" onClick={() => setConfirmVideo(null)} className="rounded-xl border px-4 py-2 text-sm">Cancel</button><button type="button" onClick={() => void confirmDelete()} className="rounded-xl bg-[#9a442d] px-4 py-2 text-sm font-semibold text-white">Remove</button></div></div></div>}
   </div>
 }
