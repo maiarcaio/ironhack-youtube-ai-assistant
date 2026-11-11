@@ -13,6 +13,12 @@ import {
 // the simulation logic inside this file.
 export const mockVideoApi: VideoApi = {
   ingestVideo,
+  async uploadAudio() {
+    throw new Error('Audio upload is unavailable in demo mode.')
+  },
+  async getAudioPlayback() {
+    throw new Error('Audio playback is unavailable in demo mode.')
+  },
   getVideoStatus,
   listVideos,
 }

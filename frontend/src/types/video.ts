@@ -18,6 +18,8 @@ export interface Video {
   error?: string | null
 }
 
+export type VideoMediaType = 'youtube' | 'audio' | 'unsupported'
+
 // Request sent when the user submits a YouTube URL.
 export interface IngestVideoRequest {
   url: string
@@ -27,6 +29,13 @@ export interface IngestVideoRequest {
 export interface IngestVideoResponse {
   video_id: string
   status: VideoStatus
+}
+
+export interface AudioPlaybackResponse {
+  video_id: string
+  url: string
+  expires_in: number
+  media_type: 'audio'
 }
 
 // Normalized status response used by our frontend.

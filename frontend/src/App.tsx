@@ -11,6 +11,10 @@ import { TranscriptUploadPanel } from './components/workspace/TranscriptUploadPa
 import { ChatPanel } from './components/chat/ChatPanel'
 import { QAAssistantView } from './components/chat/QAAssistantView'
 import { AddVideoModal } from './components/video/AddVideoModal'
+import { AudioUploadModal } from './components/video/AudioUploadModal'
+import { AudioPlayer } from './components/player/AudioPlayer'
+import type { AudioPlayerHandle } from './components/player/AudioPlayer'
+import { isUploadedAudioSource } from './services/api/audioUpload'
 import { VideoLibraryView } from './components/video/VideoLibraryView'
 import { SavedNotesView } from './components/notes/SavedNotesView'
 import { WorkspaceNotesPanel } from './components/notes/WorkspaceNotesPanel'
@@ -67,6 +71,7 @@ function App({ session = null }: AppProps) {
   // Video submission and library search.
   const [videoUrl, setVideoUrl] = useState('')
   const [isAddVideoOpen, setIsAddVideoOpen] = useState(false)
+  const [isAudioUploadOpen, setIsAudioUploadOpen] = useState(false)
 
   // Request and error states.
   const [isSubmitting, setIsSubmitting] =
@@ -74,6 +79,7 @@ function App({ session = null }: AppProps) {
 
   const [submissionError, setSubmissionError] =
     useState<string | null>(null)
+  const [audioUploadError, setAudioUploadError] = useState<string | null>(null)
 
   const [pollingErrors, setPollingErrors] =
     useState<Record<string, string>>({})
@@ -88,7 +94,7 @@ function App({ session = null }: AppProps) {
    * ChatPanel requests seeking through a callback rather
    * than interacting directly with the player.
    */
-  const playerRef = useRef<YouTubePlayerHandle>(null)
+  const playerRef = useRef<YouTubePlayerHandle & AudioPlayerHandle>(null)
   const pendingTranscriptSeekRef = useRef<{
     videoId: string
     seconds: number
@@ -107,6 +113,8 @@ function App({ session = null }: AppProps) {
     videos.find(
       (video) => video.id === selectedVideoId,
     ) ?? null
+  const selectedAudio = selectedVideo && isUploadedAudioSource(selectedVideo.source_url)
+  const selectedUnsupported = selectedVideo?.source_url.startsWith('storage://') && !selectedAudio
 
   /**
    * Seek to a source citation timestamp.
@@ -281,7 +289,7 @@ function App({ session = null }: AppProps) {
     }
   }
 
-  const loadLibrary = useCallback(async (): Promise<void> => {
+  const loadLibrary = useCallback(async (): Promise<boolean> => {
     const requestId = ++libraryRequestRef.current
     const sessionUserId = sessionUserIdRef.current
 
@@ -294,7 +302,7 @@ function App({ session = null }: AppProps) {
 
     try {
       const response = await activeVideoApi.listVideos()
-      if (!isCurrentRequest()) return
+      if (!isCurrentRequest()) return false
 
       const loadedVideos = response.videos
         .map(toVideo)
@@ -306,7 +314,7 @@ function App({ session = null }: AppProps) {
       const failedVideos = loadedVideos.filter(
         (video) => video.status === 'failed',
       )
-      if (failedVideos.length === 0) return
+      if (failedVideos.length === 0) return true
 
       const statusResults = await Promise.all(
         failedVideos.map(async (video) => {
@@ -320,7 +328,7 @@ function App({ session = null }: AppProps) {
           }
         }),
       )
-      if (!isCurrentRequest()) return
+      if (!isCurrentRequest()) return false
 
       const statuses = new Map(
         statusResults.filter(
@@ -343,9 +351,11 @@ function App({ session = null }: AppProps) {
           error: status.status === 'failed' ? status.error : null,
         }
       }))
+      return true
     } catch (caughtError) {
-      if (!isCurrentRequest()) return
+      if (!isCurrentRequest()) return false
       setLibraryError(caughtError instanceof Error ? caughtError.message : 'Unable to load your video library.')
+      return false
     }
   }, [activeVideoApi])
 
@@ -425,6 +435,32 @@ function App({ session = null }: AppProps) {
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  async function handleAudioUpload(file: File): Promise<boolean> {
+    if (isSubmitting || useMockApi) return false
+    setIsSubmitting(true)
+    setAudioUploadError(null)
+    try {
+      const response = await activeVideoApi.uploadAudio(file)
+      const refreshed = await loadLibrary()
+      setSelectedVideoId(response.video_id)
+      if (refreshed) {
+        setIsAudioUploadOpen(false)
+      } else {
+        setAudioUploadError('Recording accepted by the backend, but the library could not refresh. Use Refresh library or reload the page; do not upload again.')
+      }
+      return true
+    } catch (caughtError) {
+      setAudioUploadError(caughtError instanceof Error ? caughtError.message : 'Unable to upload audio.')
+      return false
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  function UnsupportedMediaNotice() {
+    return <div className="flex min-h-64 items-center justify-center p-8 text-center"><div><h2 className="text-base font-bold text-white">Unsupported private media</h2><p className="mt-2 text-xs text-[#e7e1df]">This recording format cannot be played by the current frontend.</p></div></div>
   }
 
   // Open a video from the library.
@@ -604,6 +640,7 @@ function App({ session = null }: AppProps) {
           isMockMode={useMockApi}
           onSelectVideo={handleSelectVideo}
           onOpenAddVideo={() => setIsAddVideoOpen(true)}
+          onOpenAudioUpload={() => { setAudioUploadError(null); setIsAudioUploadOpen(true) }}
         />
       )}
 
@@ -625,11 +662,12 @@ function App({ session = null }: AppProps) {
             isMockMode={useMockApi}
             onBack={() => setActivePage('library')}
             onTranscript={() => setActivePage('transcript')}
+            player={selectedUnsupported ? <UnsupportedMediaNotice /> : selectedAudio ? <AudioPlayer videoId={selectedVideo.id} title={selectedVideo.title} getPlayback={activeVideoApi.getAudioPlayback} ref={playerRef} /> : undefined}
           >
             {assistantPanel}
           </QAAssistantView>
         ) : (
-        <VideoWorkspaceView
+          <VideoWorkspaceView
           ref={playerRef}
           video={selectedVideo}
           notesCount={selectedVideo
@@ -647,7 +685,8 @@ function App({ session = null }: AppProps) {
           onPlayerReadyChange={handlePlayerReadyChange}
           onPlayerUnavailable={handlePlayerUnavailable}
           onOpenAssistant={() => setActivePage('qa')}
-          onBack={() => setActivePage('library')}
+            onBack={() => setActivePage('library')}
+            player={selectedUnsupported ? <UnsupportedMediaNotice /> : selectedAudio ? <AudioPlayer videoId={selectedVideo.id} title={selectedVideo.title} getPlayback={activeVideoApi.getAudioPlayback} ref={playerRef} onReadyChange={handlePlayerReadyChange} onUnavailable={handlePlayerUnavailable} /> : undefined}
         >
           {assistantPanel}
         </VideoWorkspaceView>
@@ -683,6 +722,7 @@ function App({ session = null }: AppProps) {
         onVideoUrlChange={setVideoUrl}
         onSubmit={handleSubmit}
       />
+      <AudioUploadModal isOpen={isAudioUploadOpen} isSubmitting={isSubmitting} isMockMode={useMockApi} error={audioUploadError} onClose={() => { setIsAudioUploadOpen(false); setAudioUploadError(null) }} onRefreshLibrary={() => { void loadLibrary() }} onUpload={handleAudioUpload} />
     </VideoMindShell>
   )
 }
