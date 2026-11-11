@@ -15,6 +15,7 @@ from app.services.agents.agent import (
 from app.services.agents.evidence import (
     EVIDENCE_TOOLS,
     extract_tool_sources,
+    parse_evidence_status,
 )
 from app.services.persistence.chat_repository import (
     get_or_create_thread,
@@ -60,7 +61,7 @@ def answer_with_agent(
         {"role": "user", "content": question},
     ]
 
-    # Supabase manages the memory, not the in-memory checkpointer.
+    # Supabase manages memory, not the in-memory checkpointer.
     agent = create_video_agent(
         video_id=video_id,
         owner_id=owner_id,
@@ -110,7 +111,14 @@ def answer_with_agent(
             seen_chunks.add(chunk_id)
             sources.append(source)
 
-    # Save the new exchange in Supabase.
+    # Extract semantic evidence assessment.
+    # Keep the status marker out of the user-facing answer.
+    answer, insufficient_evidence = parse_evidence_status(
+        answer,
+        fallback=search_executed and not sources,
+    )
+
+    # Save the clean exchange in Supabase.
     save_conversation_turn(
         owner_id=owner_id,
         video_id=video_id,
@@ -125,6 +133,6 @@ def answer_with_agent(
         "thread_id": public_thread_id,
         "answer": answer,
         "sources": sources,
-        "insufficient_evidence": search_executed and not sources,
+        "insufficient_evidence": insufficient_evidence,
         "model_used": get_model_name(analysis_mode),
     }

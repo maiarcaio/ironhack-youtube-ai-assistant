@@ -66,3 +66,23 @@ def extract_tool_sources(
         })
 
     return sources
+
+def parse_evidence_status(
+    answer: str,
+    fallback: bool = False,
+) -> tuple[str, bool]:
+    """Extract the agent's evidence assessment from its answer."""
+
+    first_line, separator, remaining = answer.partition("\n")
+
+    statuses = {
+        "EVIDENCE_STATUS:SUFFICIENT": False,
+        "EVIDENCE_STATUS:INSUFFICIENT": True,
+    }
+
+    status = first_line.strip()
+
+    if separator and status in statuses and remaining.strip():
+        return remaining.strip(), statuses[status]
+
+    return answer.strip(), fallback

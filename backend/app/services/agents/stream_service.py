@@ -5,8 +5,6 @@ import asyncio
 import json
 import logging
 
-logger = logging.getLogger(__name__)
-
 from langchain_core.messages import ToolMessage
 
 from app.services.agents.agent import (
@@ -17,12 +15,16 @@ from app.services.agents.agent import (
 from app.services.agents.evidence import (
     EVIDENCE_TOOLS,
     extract_tool_sources,
+    parse_evidence_status,
 )
 from app.services.persistence.chat_repository import (
     get_or_create_thread,
     load_conversation_history,
     save_conversation_turn,
 )
+
+
+logger = logging.getLogger(__name__)
 
 
 def format_sse(event: str, data: dict) -> str:
@@ -82,6 +84,17 @@ async def stream_agent_response(
         seen_chunks = set()
         search_executed = False
 
+        # Buffer only the beginning of the answer to remove
+        # the evidence status marker without breaking SSE.
+        status_options = {
+            "EVIDENCE_STATUS:SUFFICIENT": False,
+            "EVIDENCE_STATUS:INSUFFICIENT": True,
+        }
+
+        prefix_buffer = ""
+        status_pending = True
+        explicit_insufficient = None
+
         async for part in agent.astream(
             {"messages": messages},
             stream_mode=["messages", "updates"],
@@ -95,7 +108,54 @@ async def stream_agent_response(
 
                 text = chunk.text
 
-                if text:
+                if not text:
+                    continue
+
+                if status_pending:
+                    prefix_buffer += text
+
+                    first_line, separator, remaining = (
+                        prefix_buffer.partition("\n")
+                    )
+
+                    if separator:
+                        status = first_line.strip()
+
+                        if status in status_options:
+                            explicit_insufficient = status_options[status]
+                            status_pending = False
+                            prefix_buffer = ""
+
+                            if remaining:
+                                answer_parts.append(remaining)
+                                yield format_sse(
+                                    "token", {"text": remaining}
+                                )
+                        else:
+                            status_pending = False
+                            answer_parts.append(prefix_buffer)
+                            yield format_sse(
+                                "token", {"text": prefix_buffer}
+                            )
+                            prefix_buffer = ""
+
+                    else:
+                        candidate = prefix_buffer.strip()
+
+                        possible_header = any(
+                            option.startswith(candidate)
+                            for option in status_options
+                        )
+
+                        if not possible_header:
+                            status_pending = False
+                            answer_parts.append(prefix_buffer)
+                            yield format_sse(
+                                "token", {"text": prefix_buffer}
+                            )
+                            prefix_buffer = ""
+
+                else:
                     answer_parts.append(text)
                     yield format_sse("token", {"text": text})
 
@@ -129,10 +189,24 @@ async def stream_agent_response(
                         seen_chunks.add(chunk_id)
                         sources.append(source)
 
+        # Flush any buffered text if the model omitted the marker.
+        if status_pending and prefix_buffer:
+            answer_parts.append(prefix_buffer)
+            yield format_sse("token", {"text": prefix_buffer})
+
         answer = "".join(answer_parts).strip()
 
         if not answer:
             raise RuntimeError("Agent returned no answer.")
+
+        # Use the explicit semantic assessment when available.
+        if explicit_insufficient is not None:
+            insufficient_evidence = explicit_insufficient
+        else:
+            answer, insufficient_evidence = parse_evidence_status(
+                answer,
+                fallback=search_executed and not sources,
+            )
 
         await asyncio.to_thread(
             save_conversation_turn,
@@ -152,15 +226,15 @@ async def stream_agent_response(
             "thread_id": public_thread_id,
             "answer": answer,
             "model_used": get_model_name(analysis_mode),
-            "insufficient_evidence": (
-                search_executed and not sources
-            ),
+            "insufficient_evidence": insufficient_evidence,
         })
 
     except Exception:
-        logger.exception("VideoMind stream failed for video %s", video_id)
+        logger.exception(
+            "VideoMind stream failed for video %s",
+            video_id,
+        )
+
         yield format_sse("error", {
-            "message": (
-                "Unable to complete or save the response."
-            )
+            "message": "Unable to complete or save the response."
         })
