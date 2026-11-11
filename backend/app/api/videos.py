@@ -29,6 +29,8 @@ logger = logging.getLogger(__name__)
 from app.services.persistence.video_repository import (
     get_video,
     list_videos as fetch_user_videos,
+    set_video_archived,
+    soft_delete_video,
 )
 
 
@@ -155,10 +157,11 @@ def get_video_status(
 
 def list_videos(
     owner_id: CurrentUserId,
+    archived: bool = Query(default=False),
 ):
     """List videos belonging to the authenticated user."""
 
-    videos = fetch_user_videos(owner_id=owner_id)
+    videos = fetch_user_videos(owner_id=owner_id, archived=archived)
 
     return VideoListResponse(videos=videos)
 
@@ -224,3 +227,33 @@ def list_video_moments(
         raise HTTPException(409, "Video is not ready.")
     return {"video_id": video_id,
             "moments": get_video_moments(owner_id, video_id, limit)}
+
+
+
+@router.post("/{video_id}/archive")
+def archive_library_video(video_id: str, owner_id: CurrentUserId):
+    """Hide an owned video from the active library without deleting its data."""
+    video = set_video_archived(owner_id=owner_id, video_id=video_id, archived=True)
+    if video is None:
+        raise HTTPException(404, "Video not found.")
+    return {"video_id": video_id, "archived": True}
+
+
+@router.post("/{video_id}/restore")
+def restore_library_video(video_id: str, owner_id: CurrentUserId):
+    """Restore an archived video to the active library."""
+    video = set_video_archived(owner_id=owner_id, video_id=video_id, archived=False)
+    if video is None:
+        raise HTTPException(404, "Video not found.")
+    return {"video_id": video_id, "archived": False}
+
+
+@router.delete("/{video_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_library_video(video_id: str, owner_id: CurrentUserId):
+    """Soft-delete an owned, inactive video; no Pinecone/Storage deletion."""
+    result = soft_delete_video(owner_id=owner_id, video_id=video_id)
+    if result is None:
+        raise HTTPException(404, "Video not found.")
+    if result is False:
+        raise HTTPException(409, "Wait until video processing finishes before deleting.")
+    return None
