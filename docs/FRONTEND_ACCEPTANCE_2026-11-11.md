@@ -4,11 +4,11 @@ Date: 11 November 2026
 Real YouTube acceptance commit: `cb836c0ffc7b2911770f1a3303f0c81f6291db53`
 Streaming correction commit: `161815bbf3c4f64679f98d0fbec6f3190ab36cfe`
 
-This report covers draft PR #17, stacked on draft PR #16. It does not describe the deployed `main` application as having these unmerged frontend changes.
+This report covers the frontend changes now merged through PR #16 and PR #17 into `main`. Production observations below are tied to the deployed commit actually inspected, not inferred from preview history.
 
 ## Environment
 
-The real authenticated YouTube acceptance was performed locally at `http://localhost:5175` on commit `cb836c0ffc7b2911770f1a3303f0c81f6291db53`. The later streaming correction was committed as `161815bbf3c4f64679f98d0fbec6f3190ab36cfe`; the full real YouTube acceptance was not independently repeated after that correction. The PR #17 Vercel preview subsequently displayed its authenticated backend-mode interface at `https://ironhack-youtube-ai-assistant-git-feat-unified-9939aa-maiarcaio.vercel.app/`, but its backend requests were rejected because Render did not allow that exact origin. The preview library therefore could not load real records through the backend.
+The real authenticated YouTube acceptance was performed locally at `http://localhost:5175` on commit `cb836c0ffc7b2911770f1a3303f0c81f6291db53`. The later streaming correction was committed as `161815bbf3c4f64679f98d0fbec6f3190ab36cfe`; the full real YouTube acceptance was not independently repeated after that correction. The PR #17 preview displayed its authenticated backend-mode interface, but its backend requests were historically rejected because Render did not allow that exact origin. That preview CORS failure is retained as historical evidence; it is not evidence about the current production deployment.
 
 The public backend health check responded `HTTP 200` with `{"status":"ok"}`. This confirms service health only; it does not prove audio storage, transcription, indexing, signed playback, or chat acceptance.
 
@@ -27,7 +27,7 @@ The public backend health check responded `HTTP 200` with `{"status":"ok"}`. Thi
 | PR #17 preview authentication and backend access | Vercel preview | The authenticated backend-mode interface displayed, but the library could not load because backend requests from the exact preview origin were rejected by CORS | Blocked | Backend/Render CORS |
 | PR #17 preview audio preflight | Vercel preview and direct preflight | `OPTIONS /api/v1/videos/upload` from the exact preview origin returned HTTP 400 `Disallowed CORS origin`; the browser did not send the POST | Blocked | Backend/Render CORS |
 | New audio record after failed attempts | Authenticated local library | Existing library remained at 7 records with no new audio entry; no retry was made | Pass | — |
-| Whisper transcript, signed audio, audio citations, Terra, and Sol | Current run | Not tested because the local POST stopped at backend storage failure and the preview POST was blocked by CORS | Not tested | Backend/Render |
+| Whisper transcript, signed audio, audio citations, Terra, and Sol | Earlier authorized QA recording | Verified on the existing Ready M4A recording in the authenticated acceptance run; no new upload was performed | Passed (record-specific) | Frontend/backend integration |
 
 ## Automated evidence
 
@@ -37,8 +37,8 @@ The browser suites are simulated/intercepted coverage. They are not evidence of 
 
 ## Issues requiring backend or deployment follow-up
 
-- Add the exact PR preview origin to the Render CORS allowlist and verify the preflight returns HTTP 200.
-- Resolve the Render/Supabase Storage HTTP 503 returned by the localhost audio POST.
+- Historical follow-up: add the exact PR preview origin to the Render CORS allowlist and verify the preflight returns HTTP 200.
+- Historical follow-up: resolve the Render/Supabase Storage HTTP 503 returned by the localhost audio POST; later backend/storage validation cleared this blocker for the existing QA recording.
 - After both blockers are resolved, run one authorized QA upload and observe the complete pipeline: `202` response, UUID, processing, Whisper transcript, indexing, signed playback, transcript seeking, and grounded Terra/Sol answers.
 
 No additional production recording was created after the failed acceptance attempts.

@@ -2,7 +2,7 @@
 
 This document describes the frontend deployment boundary. It does not apply Render settings or contain backend credentials.
 
-The production deployment tracks `main`. Draft PR #16 and draft PR #17 have separate branch previews and are not production until merged. Verify the branch and commit shown by Vercel before using a preview as acceptance evidence.
+The production deployment tracks `main`. PR #16 and PR #17 are merged; verify the branch and commit shown by Vercel before using a deployment as acceptance evidence.
 
 ## Architecture
 
