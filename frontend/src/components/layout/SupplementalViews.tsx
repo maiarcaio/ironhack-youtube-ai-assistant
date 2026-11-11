@@ -77,6 +77,7 @@ export function TranscriptContent({ selectedVideo, onNavigate, onSeek, compact =
     void getVideoTranscript(videoId)
       .then((transcript) => {
         if (!cancelled) {
+          setError(null)
           setSegments(
             transcript
               ? parseTranscript(transcript.content, transcript.format)
