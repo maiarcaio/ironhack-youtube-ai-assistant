@@ -75,12 +75,12 @@ npm run test:e2e:auth
 
 The mock and intercepted browser suites are offline simulations. They validate UI and adapters, not Render, Supabase Storage, Whisper, Pinecone, model latency, or real YouTube playback. Real acceptance results are recorded separately in [`docs/FRONTEND_ACCEPTANCE_2026-11-11.md`](docs/FRONTEND_ACCEPTANCE_2026-11-11.md).
 
-## Deployment and demo
+## Deployment
 
 - Frontend production URL: <https://videomind-ai-ironhack.vercel.app>
 - Backend production URL: <https://videomind-ai-backend.onrender.com>
 
-Vercel and Render project settings are external configuration and must be confirmed by the project owners. Deployment process and verification guidance are in [`deployment/README.md`](deployment/README.md). A safe demo of the released baseline uses an already indexed record: open Library → select a ready video → show Transcript search → ask one Terra question → open a citation timestamp → show Notes. Do not present a preprocessed record as a newly ingested one. Keep an approved short audio fixture available as a fallback only when the deployed audio pipeline has been verified.
+Vercel and Render project settings are external configuration and must be confirmed by the project owners. Deployment process and verification guidance are in [`deployment/README.md`](deployment/README.md). Do not present a preprocessed record as a newly ingested one. Keep an approved short audio fixture available as a fallback only when the deployed audio pipeline has been verified.
 
 ## Repository structure
 
@@ -89,7 +89,7 @@ frontend/       React application, Supabase client, API adapters, players, notes
 backend/        FastAPI service, ingestion/audio workers, agent tools, and backend tests
 supabase/       Database migrations and security policies
 evaluation/     Evaluation assets and project placeholders
-docs/           Acceptance, deployment, and presentation documentation
+docs/           Acceptance and project documentation
 ```
 
 ## Known limitations
