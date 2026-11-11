@@ -1,11 +1,13 @@
 """Library management API regression tests (mocked, no external calls)."""
 
 import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.api.auth import get_current_user_id
 from app.api import videos as video_api
-from app.main import app
+app = FastAPI()
+app.include_router(video_api.router)
 
 
 OWNER_ID = "00000000-0000-4000-8000-000000000001"
