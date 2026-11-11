@@ -43,4 +43,20 @@ test.describe('authenticated library management — intercepted', () => {
     await page.getByRole('dialog').getByRole('button', { name: 'Remove', exact: true }).click()
     await expect.poll(() => deletes).toBe(1)
   })
+
+  test('archive and restore keep shortcuts scoped to active records', async ({ page }) => {
+    const calls: string[] = []
+    await page.route('http://supabase.test/auth/v1/token**', async (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(sessionResponse()) }))
+    await page.route(`${API}/api/v1/videos**`, async (route) => {
+      const url = route.request().url()
+      if (url.includes('archived=true')) return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ videos: [{ video_id: ID, title: 'Archived lecture', status: 'completed', source_url: 'https://www.youtube.com/watch?v=jNQXAC9IVRw', archived_at: '2026-11-11T00:00:00Z' }] }) })
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ videos: [{ video_id: ID, title: 'Archived lecture', status: 'completed', source_url: 'https://www.youtube.com/watch?v=jNQXAC9IVRw' }] }) })
+    })
+    await page.route(`${API}/api/v1/videos/${ID}/archive`, async (route) => { calls.push('archive'); await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ video_id: ID, archived: true }) }) })
+    await page.route(`${API}/api/v1/videos/${ID}/restore`, async (route) => { calls.push('restore'); await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ video_id: ID, archived: false }) }) })
+    await page.goto('/'); await signIn(page); await expect(page.getByText('Archived lecture')).toBeVisible()
+    await page.getByRole('button', { name: 'Archive', exact: true }).click(); await expect.poll(() => calls).toContain('archive')
+    await page.getByRole('button', { name: 'Archived', exact: true }).click(); await expect(page.getByRole('button', { name: 'Restore', exact: true })).toBeVisible()
+    await page.getByRole('button', { name: 'Restore' }).click(); await expect.poll(() => calls).toContain('restore')
+  })
 })
