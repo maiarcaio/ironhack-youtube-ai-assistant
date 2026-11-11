@@ -16,6 +16,7 @@ export interface Video {
   // The authenticated list endpoint does not expose a timestamp yet.
   created_at?: string
   error?: string | null
+  archived_at?: string | null
 }
 
 export type VideoMediaType = 'youtube' | 'audio' | 'unsupported'
@@ -44,6 +45,7 @@ export interface VideoStatusResponse {
   status: VideoStatus
   title?: string | null
   thumbnail_url?: string | null
+  archived_at?: string | null
   error?: string | null
 }
 
@@ -55,9 +57,15 @@ export interface VideoLibraryItem {
   status: VideoStatus
   source_url: string | null
   thumbnail_url?: string | null
+  archived_at?: string | null
 }
 
 // The complete video collection returned by listVideos().
 export interface VideoListResponse {
   videos: VideoLibraryItem[]
+}
+
+export interface VideoMutationResponse {
+  video_id: string
+  archived: boolean
 }

@@ -119,6 +119,7 @@ export function createAuthenticatedVideoApi(
         throw getApiError(response.status, detail)
       }
 
+      if (response.status === 204) return undefined
       return (await response.json()) as unknown
     } catch (error) {
       if (controller.signal.aborted) {
@@ -208,6 +209,23 @@ export function createAuthenticatedVideoApi(
       // The backend returns only the authenticated
       // user's videos. The client must not invent records.
       return validateVideoListResponse(result)
+    },
+
+    async listArchivedVideos(): Promise<VideoListResponse> {
+      const result = await requestJson('/api/v1/videos?archived=true')
+      return validateVideoListResponse(result)
+    },
+
+    async archiveVideo(videoId: string): Promise<void> {
+      await requestJson(`/api/v1/videos/${encodeURIComponent(videoId)}/archive`, { method: 'POST' })
+    },
+
+    async restoreVideo(videoId: string): Promise<void> {
+      await requestJson(`/api/v1/videos/${encodeURIComponent(videoId)}/restore`, { method: 'POST' })
+    },
+
+    async deleteVideo(videoId: string): Promise<void> {
+      await requestJson(`/api/v1/videos/${encodeURIComponent(videoId)}`, { method: 'DELETE' })
     },
   }
 }

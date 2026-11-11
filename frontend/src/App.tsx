@@ -59,6 +59,8 @@ function App({ session = null }: AppProps) {
   )
   // Store videos added during the current browser session.
   const [videos, setVideos] = useState<Video[]>([])
+  const [archivedVideos, setArchivedVideos] = useState<Video[]>([])
+  const [libraryCollection, setLibraryCollection] = useState<'active' | 'archived'>('active')
 
   // Track the selected video and active application page.
   const [selectedVideoId, setSelectedVideoId] =
@@ -83,6 +85,7 @@ function App({ session = null }: AppProps) {
   const [pollingErrors, setPollingErrors] =
     useState<Record<string, string>>({})
   const [libraryError, setLibraryError] = useState<string | null>(null)
+  const [libraryActionError, setLibraryActionError] = useState<string | null>(null)
   const libraryRequestRef = useRef(0)
   const sessionUserIdRef = useRef(session?.user.id ?? null)
   sessionUserIdRef.current = session?.user.id ?? null
@@ -114,6 +117,30 @@ function App({ session = null }: AppProps) {
     ) ?? null
   const selectedAudio = selectedVideo && isUploadedAudioSource(selectedVideo.source_url)
   const selectedUnsupported = selectedVideo?.source_url.startsWith('storage://') && !selectedAudio
+
+  async function refreshArchivedVideos(): Promise<void> {
+    try {
+      const response = await activeVideoApi.listArchivedVideos()
+      setArchivedVideos(response.videos.map(toVideo).filter((video): video is Video => video !== null))
+    } catch (error) {
+      setLibraryActionError(error instanceof Error ? error.message : 'Unable to load archived videos.')
+    }
+  }
+
+  async function manageVideo(action: 'archive' | 'restore' | 'delete', video: Video): Promise<void> {
+    if (action === 'delete' && !window.confirm(`Remove “${video.title}” from your library? This does not permanently erase the underlying data.`)) return
+    try {
+      setLibraryActionError(null)
+      if (action === 'archive') await activeVideoApi.archiveVideo(video.id)
+      if (action === 'restore') await activeVideoApi.restoreVideo(video.id)
+      if (action === 'delete') await activeVideoApi.deleteVideo(video.id)
+      if (selectedVideoId === video.id) { setSelectedVideoId(null); setActivePage('library') }
+      await loadLibrary()
+      await refreshArchivedVideos()
+    } catch (error) {
+      setLibraryActionError(error instanceof Error ? error.message : 'Library action failed.')
+    }
+  }
 
   /**
    * Seek to a source citation timestamp.
@@ -642,9 +669,13 @@ function App({ session = null }: AppProps) {
     >
       {activePage === 'library' && (
         <VideoLibraryView
-          videos={videos}
+          videos={libraryCollection === 'active' ? videos : archivedVideos}
           selectedVideoId={selectedVideoId}
           isMockMode={useMockApi}
+          collection={libraryCollection}
+          onCollectionChange={(collection) => { setLibraryCollection(collection); if (collection === 'archived') void refreshArchivedVideos() }}
+          onManageVideo={manageVideo}
+          actionError={libraryActionError}
           onSelectVideo={handleSelectVideo}
           onOpenAddVideo={() => setIsAddVideoOpen(true)}
           onOpenAudioUpload={() => { setAudioUploadError(null); setIsAudioUploadOpen(true) }}

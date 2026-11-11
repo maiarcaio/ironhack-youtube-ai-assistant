@@ -168,6 +168,7 @@ function validateVideoLibraryItem(
         ? value.source_url
         : null,
     thumbnail_url: typeof value.thumbnail_url === 'string' ? value.thumbnail_url : null,
+    archived_at: typeof value.archived_at === 'string' ? value.archived_at : null,
   }
 }
 

@@ -105,5 +105,13 @@ export function createHttpVideoApi(baseUrl: string): VideoApi {
 
       return validateVideoListResponse(data)
     },
+
+    async listArchivedVideos(): Promise<VideoListResponse> {
+      const data = await requestJson(`${apiBase}/api/v1/videos?archived=true`)
+      return validateVideoListResponse(data)
+    },
+    async archiveVideo(videoId: string): Promise<void> { await requestJson(`${apiBase}/api/v1/videos/${encodeURIComponent(videoId)}/archive`, { method: 'POST' }) },
+    async restoreVideo(videoId: string): Promise<void> { await requestJson(`${apiBase}/api/v1/videos/${encodeURIComponent(videoId)}/restore`, { method: 'POST' }) },
+    async deleteVideo(videoId: string): Promise<void> { await requestJson(`${apiBase}/api/v1/videos/${encodeURIComponent(videoId)}`, { method: 'DELETE' }) },
   }
 }
