@@ -40,6 +40,7 @@ async function requestJson(
       throw new Error(`API request failed (${response.status})`)
     }
 
+    if (response.status === 204) return undefined
     return await response.json()
   } catch (error) {
     if (controller.signal.aborted) {

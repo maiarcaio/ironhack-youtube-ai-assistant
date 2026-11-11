@@ -87,6 +87,7 @@ function App({ session = null }: AppProps) {
   const [libraryError, setLibraryError] = useState<string | null>(null)
   const [libraryActionError, setLibraryActionError] = useState<string | null>(null)
   const libraryRequestRef = useRef(0)
+  const archivedRequestRef = useRef(0)
   const sessionUserIdRef = useRef(session?.user.id ?? null)
   sessionUserIdRef.current = session?.user.id ?? null
 
@@ -118,12 +119,18 @@ function App({ session = null }: AppProps) {
   const selectedAudio = selectedVideo && isUploadedAudioSource(selectedVideo.source_url)
   const selectedUnsupported = selectedVideo?.source_url.startsWith('storage://') && !selectedAudio
 
-  async function refreshArchivedVideos(): Promise<void> {
+  async function refreshArchivedVideos(): Promise<boolean> {
+    const requestId = ++archivedRequestRef.current
+    const ownerId = sessionUserIdRef.current
     try {
       const response = await activeVideoApi.listArchivedVideos()
+      if (requestId !== archivedRequestRef.current || ownerId !== sessionUserIdRef.current) return false
       setArchivedVideos(response.videos.map(toVideo).filter((video): video is Video => video !== null))
+      return true
     } catch (error) {
+      if (requestId !== archivedRequestRef.current || ownerId !== sessionUserIdRef.current) return false
       setLibraryActionError(error instanceof Error ? error.message : 'Unable to load archived videos.')
+      return false
     }
   }
 
@@ -134,12 +141,19 @@ function App({ session = null }: AppProps) {
       if (action === 'restore') await activeVideoApi.restoreVideo(video.id)
       if (action === 'delete') await activeVideoApi.deleteVideo(video.id)
       if (selectedVideoId === video.id) { setSelectedVideoId(null); setActivePage('library') }
-      await loadLibrary()
-      await refreshArchivedVideos()
+      const activeRefreshed = await loadLibrary()
+      const archivedRefreshed = await refreshArchivedVideos()
+      if (!activeRefreshed || !archivedRefreshed) setLibraryActionError('The change was accepted, but the library could not refresh. Reload the library to confirm it.')
     } catch (error) {
-      setLibraryActionError(error instanceof Error ? error.message : 'Library action failed.')
+      setLibraryActionError(error instanceof Error ? error.message : 'Library action failed. No change was confirmed.')
     }
   }
+
+  useEffect(() => {
+    archivedRequestRef.current += 1
+    setArchivedVideos([])
+    setLibraryActionError(null)
+  }, [session?.user.id])
 
   /**
    * Seek to a source citation timestamp.
