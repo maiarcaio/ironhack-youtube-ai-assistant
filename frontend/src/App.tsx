@@ -266,6 +266,7 @@ function App({ session = null }: AppProps) {
     title: string
     status: VideoStatus
     source_url: string | null
+    thumbnail_url?: string | null
   }): Video | null {
     // A playable library entry needs the backend's original source URL.
     // Do not fabricate one when persistence returns incomplete data.
@@ -276,7 +277,10 @@ function App({ session = null }: AppProps) {
       title: item.title,
       source_url: item.source_url,
       status: item.status,
-      thumbnail_url: null,
+      thumbnail_url: item.thumbnail_url ?? (() => {
+        const id = extractYouTubeVideoId(item.source_url)
+        return id ? `https://i.ytimg.com/vi/${id}/hqdefault.jpg` : null
+      })(),
       error: null,
     }
   }

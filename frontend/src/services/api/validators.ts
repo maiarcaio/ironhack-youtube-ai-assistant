@@ -154,6 +154,11 @@ function validateVideoLibraryItem(
     )
   }
 
+  if (value.thumbnail_url !== undefined && value.thumbnail_url !== null &&
+    (typeof value.thumbnail_url !== 'string' || !/^https?:\/\//i.test(value.thumbnail_url))) {
+    throw new Error('Invalid video library response from the API.')
+  }
+
   return {
     video_id: value.video_id,
     title: value.title,
@@ -162,6 +167,7 @@ function validateVideoLibraryItem(
       typeof value.source_url === 'string'
         ? value.source_url
         : null,
+    thumbnail_url: typeof value.thumbnail_url === 'string' ? value.thumbnail_url : null,
   }
 }
 

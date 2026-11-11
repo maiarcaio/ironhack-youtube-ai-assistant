@@ -54,6 +54,7 @@ export interface VideoLibraryItem {
   title: string
   status: VideoStatus
   source_url: string | null
+  thumbnail_url?: string | null
 }
 
 // The complete video collection returned by listVideos().
