@@ -64,6 +64,7 @@ export function TranscriptContent({ selectedVideo, onNavigate, onSeek, compact =
   const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(Boolean(selectedVideo))
   const [error, setError] = useState<string | null>(null)
+  const selectedVideoReady = selectedVideo?.status === 'ready'
 
   useEffect(() => {
     let cancelled = false
@@ -99,7 +100,7 @@ export function TranscriptContent({ selectedVideo, onNavigate, onSeek, compact =
     return () => {
       cancelled = true
     }
-  }, [selectedVideo?.id])
+  }, [selectedVideo?.id, selectedVideoReady])
 
   const filteredSegments = useMemo(() => {
     const search = query.trim().toLocaleLowerCase()

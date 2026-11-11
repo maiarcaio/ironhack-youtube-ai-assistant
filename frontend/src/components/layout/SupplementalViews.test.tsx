@@ -83,6 +83,33 @@ describe('SearchableTranscriptView', () => {
     expect(onSeek).toHaveBeenCalledExactlyOnceWith(1)
   })
 
+  it('refetches when a selected video transitions to ready', async () => {
+    const { rerender } = render(
+      <SearchableTranscriptView
+        videos={[{ ...video, status: 'processing' }]}
+        selectedVideo={{ ...video, status: 'processing' }}
+        onNavigate={vi.fn()}
+        onSeek={vi.fn()}
+      />,
+    )
+
+    expect(await screen.findByText('Hello everyone.')).toBeTruthy()
+    expect(mocks.maybeSingle).toHaveBeenCalledTimes(1)
+
+    rerender(
+      <SearchableTranscriptView
+        videos={[video]}
+        selectedVideo={video}
+        onNavigate={vi.fn()}
+        onSeek={vi.fn()}
+      />,
+    )
+
+    await act(async () => undefined)
+    expect(mocks.maybeSingle).toHaveBeenCalledTimes(2)
+    expect(screen.getByText('Welcome to VideoMind.')).toBeTruthy()
+  })
+
   it('filters transcript text and highlights case-insensitive matches', async () => {
     const user = userEvent.setup()
 
