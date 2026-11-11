@@ -12,6 +12,10 @@ The real authenticated YouTube acceptance was performed locally at `http://local
 
 The public backend health check responded `HTTP 200` with `{"status":"ok"}`. This confirms service health only; it does not prove audio storage, transcription, indexing, signed playback, or chat acceptance.
 
+### Current production deployment (separate from authenticated acceptance)
+
+Vercel reported its production deployment **Ready** at `main` commit `44edf29fb236156567a81396d2d238c630c4103f` (merged PR #17). Codex observed HTTP 200 from the production URL and HTTP 200 from Render `/health` and `/openapi.json`; its build inspection found the expected Render backend and no enabled mock mode. **An authenticated production session was not successfully inspected**: browser automation timed out, so no fresh production claims are made for library, YouTube playback, transcripts, audio, Terra/Sol, notes, or PR #20 abstention. These remain required production acceptance checks.
+
 ## Acceptance matrix
 
 | Scenario | Source | Result | Status | Owner |
@@ -27,18 +31,24 @@ The public backend health check responded `HTTP 200` with `{"status":"ok"}`. Thi
 | PR #17 preview authentication and backend access | Vercel preview | The authenticated backend-mode interface displayed, but the library could not load because backend requests from the exact preview origin were rejected by CORS | Blocked | Backend/Render CORS |
 | PR #17 preview audio preflight | Vercel preview and direct preflight | `OPTIONS /api/v1/videos/upload` from the exact preview origin returned HTTP 400 `Disallowed CORS origin`; the browser did not send the POST | Blocked | Backend/Render CORS |
 | New audio record after failed attempts | Authenticated local library | Existing library remained at 7 records with no new audio entry; no retry was made | Pass | — |
-| Whisper transcript, signed audio, audio citations, Terra, and Sol | Earlier authorized QA recording | Verified on the existing Ready M4A recording in the authenticated acceptance run; no new upload was performed | Passed (record-specific) | Frontend/backend integration |
+| Successful authorized audio upload | PR #17 preview, subsequent live acceptance | After the earlier CORS/storage failures were fixed, one authorized 381 KB M4A was uploaded on the preview; it appeared in the library and reached Ready (`c38fe8cb-58f9-4564-82a6-5d62a4677ac0`). Raw HTTP POST status was not observable; do not claim HTTP 202 was independently captured. | Pass (functional upload) | Frontend/backend integration |
+| Audio transcript, playback and timestamp seeking | Same PR #17 preview recording | The Ready M4A showed 10 timed transcript segments (00:00–00:31). Signed audio playback worked and timestamp seeking reached approximately 17.18 seconds. | Pass | Frontend/backend integration |
+| Grounded audio Q&A and notes | Same PR #17 preview recording | Terra correctly answered 7 apples; Sol correctly returned Silver Pineapple, both with real citation evidence. A browser-local audio note was saved. | Pass (record-specific) | Frontend/backend integration |
+| Transcript readiness regression | PR #17, commit `2a69ab50d609697eb4860a16cbcf813e230afbfe` | The transcript view now refetches after processing → Ready, recovers from an initially missing row or earlier error, and retains working timestamps. | Pass (automated) | Frontend |
+| Existing MP3 viewer | User-provided screenshot (browser origin not independently established) | An existing Ready `Me at the zoo.mp3` displayed 3 transcript segments and active audio playback; the screenshot does not establish a new MP3 upload or production-origin acceptance. | Visual evidence only | Frontend |
 
 ## Automated evidence
 
 The real YouTube acceptance above belongs to `cb836c0ffc7b2911770f1a3303f0c81f6291db53`. After the streaming correction at `161815bbf3c4f64679f98d0fbec6f3190ab36cfe`, the automated suites passed: 147/147 Vitest, 3/3 mock Playwright, and 11/11 authenticated/intercepted Playwright; build and ESLint also passed. The full real YouTube acceptance was not independently repeated after the streaming correction.
 
+After the final transcript lifecycle correction on PR #17 at `2a69ab50d609697eb4860a16cbcf813e230afbfe`, Codex reported **149/149 Vitest**, **3/3 mock Playwright**, **11/11 authenticated/intercepted Playwright**, plus successful build, ESLint and diff checks. The live preview audio results above are separately observed; the 149-unit and 14-Playwright counts are not model-quality metrics.
+
 The browser suites are simulated/intercepted coverage. They are not evidence of live Supabase, Render, Whisper, Pinecone, signed storage, model-provider, or real YouTube iframe playback.
 
-## Issues requiring backend or deployment follow-up
+## Remaining follow-up and historical blockers
 
-- Historical follow-up: add the exact PR preview origin to the Render CORS allowlist and verify the preflight returns HTTP 200.
-- Historical follow-up: resolve the Render/Supabase Storage HTTP 503 returned by the localhost audio POST; later backend/storage validation cleared this blocker for the existing QA recording.
-- After both blockers are resolved, run one authorized QA upload and observe the complete pipeline: `202` response, UUID, processing, Whisper transcript, indexing, signed playback, transcript seeking, and grounded Terra/Sol answers.
+- **Resolved in the PR #17 preview:** the earlier HTTP 400 preview CORS and HTTP 503 private-storage failures. A later preflight returned HTTP 200 with the exact allowed origin, and one authorized M4A upload was accepted, processed to Ready, and usable for transcript, signed playback and grounded chat. The raw POST status was not captured.
+- **Still pending:** authenticated browser acceptance against the final production domain and deployed commit; do not transfer preview-only evidence to production.
+- **Backend-owned:** production validation of the evidence-sufficiency/abstention behavior introduced in PR #20; verified LangSmith/model-quality, latency, baseline and cost measurements where available. PR #20's local/backend tests do not substitute for live production checks.
 
-No additional production recording was created after the failed acceptance attempts.
+No additional audio upload occurred during the later production-deployment inspection.
