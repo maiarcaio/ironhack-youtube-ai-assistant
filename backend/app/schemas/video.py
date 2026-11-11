@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, HttpUrl
@@ -23,6 +24,7 @@ class VideoItem(BaseModel):
     title: str
     status: Literal["queued", "processing", "completed", "failed"]
     source_url: str | None = None
+    archived_at: datetime | None = None
 
 
 class VideoListResponse(BaseModel):
