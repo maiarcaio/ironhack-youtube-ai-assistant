@@ -72,6 +72,20 @@ function WorkspaceHarness({ api }: { api: ChatApi }) {
 }
 
 describe('VideoWorkspaceView with the real ChatPanel', () => {
+  it('uses a bounded tools column with a dedicated conversation scroller', () => {
+    const api: ChatApi = { sendMessage: vi.fn(async (request) => responseFor(request.video_id)) }
+
+    render(<WorkspaceHarness api={api} />)
+
+    const tools = document.querySelector('.vm-workspace-tools')
+    const panel = document.querySelector('.vm-chat-panel')
+    const conversation = screen.getByRole('region', { name: 'Video Q&A' }).querySelector('[aria-label="Conversation"]')
+
+    expect(tools?.classList.contains('vm-workspace-tools')).toBe(true)
+    expect(panel?.classList.contains('vm-chat-panel')).toBe(true)
+    expect(conversation?.classList.contains('vm-chat-panel-conversation')).toBe(true)
+  })
+
   it('preserves one video conversation and draft across tools without requesting chat on navigation', async () => {
     const user = userEvent.setup()
     const api: ChatApi = {
