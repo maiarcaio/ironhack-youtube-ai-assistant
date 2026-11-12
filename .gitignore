@@ -224,3 +224,10 @@ __marimo__/
 design-references/
 docs/FRONTEND_INTEGRATION_AUDIT.md
 docs/FRONTEND_E2E_READINESS.md
+
+# Local environment overrides and private credentials
+.env.*
+!.env.example
+*.pem
+*.p12
+*.pfx
