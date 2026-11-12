@@ -18,9 +18,9 @@ The real authenticated YouTube acceptance was performed locally at `http://local
 
 The public backend health check responded `HTTP 200` with `{"status":"ok"}`. This confirms service health only; it does not prove audio storage, transcription, indexing, signed playback, or chat acceptance.
 
-### Current production deployment (separate from authenticated acceptance)
+### Superseded production inspection record (historical)
 
-Vercel reported its production deployment **Ready** at `main` commit `44edf29fb236156567a81396d2d238c630c4103f` (merged PR #17). Codex observed HTTP 200 from the production URL and HTTP 200 from Render `/health` and `/openapi.json`; its build inspection found the expected Render backend and no enabled mock mode. **An authenticated production session was not successfully inspected**: browser automation timed out, so no fresh production claims are made for library, YouTube playback, transcripts, audio, Terra/Sol, notes, or PR #20 abstention. These remain required production acceptance checks.
+Vercel previously reported production **Ready** at `main` commit `44edf29fb236156567a81396d2d238c630c4103f` (merged PR #17). That observation is superseded by the November 12 deployment `5n1LAYQLa9GpwMBQHXkHPtxYHsrK`, which reports current `main` SHA `b7ef04802cad674370e7a792e60e61e563b9edc2`. The earlier statement that authenticated production inspection was unsuccessful applies only to that historical inspection and must not be read as the current production result.
 
 ## Acceptance matrix
 
@@ -47,14 +47,14 @@ Vercel reported its production deployment **Ready** at `main` commit `44edf29fb2
 
 The real YouTube acceptance above belongs to `cb836c0ffc7b2911770f1a3303f0c81f6291db53`. After subsequent integration, the current automated evidence is 157/157 Vitest, 3/3 mock Playwright and 15/15 authenticated/intercepted Playwright, with build, ESLint and diff checks passing in the combined main/library-management validation. The full Terra/Sol production acceptance and production mutation checks remain pending.
 
-After the final transcript lifecycle correction on PR #17 at `2a69ab50d609697eb4860a16cbcf813e230afbfe`, Codex reported **149/149 Vitest**, **3/3 mock Playwright**, **11/11 authenticated/intercepted Playwright**, plus successful build, ESLint and diff checks. The live preview audio results above are separately observed; the 149-unit and 14-Playwright counts are not model-quality metrics.
+After the final transcript lifecycle correction on PR #17 at `2a69ab50d609697eb4860a16cbcf813e230afbfe`, Codex reported **149/149 Vitest**, **3/3 mock Playwright**, **11/11 authenticated/intercepted Playwright**, plus successful build, ESLint and diff checks. Those historical counts remain tied to that commit. The current integrated evidence is **157/157 Vitest**, **3/3 mock Playwright** and **15/15 authenticated/intercepted Playwright**, with build, ESLint and diff checks passing; these are not model-quality metrics.
 
 The browser suites are simulated/intercepted coverage. They are not evidence of live Supabase, Render, Whisper, Pinecone, signed storage, model-provider, or real YouTube iframe playback.
 
 ## Remaining follow-up and historical blockers
 
 - **Resolved in the PR #17 preview:** the earlier HTTP 400 preview CORS and HTTP 503 private-storage failures. A later preflight returned HTTP 200 with the exact allowed origin, and one authorized M4A upload was accepted, processed to Ready, and usable for transcript, signed playback and grounded chat. The raw POST status was not captured.
-- **Still pending:** authenticated browser acceptance against the final production domain and deployed commit; do not transfer preview-only evidence to production.
+- **Still pending:** live Terra/Sol grounded-answer validation, production archive/restore/delete mutation checks, audio-upload acceptance and backend health confirmation. The authenticated production library, player, transcript, notes and Archived UI observations are documented above and are not preview-only evidence.
 - **Backend-owned:** production validation of the evidence-sufficiency/abstention behavior introduced in PR #20; verified LangSmith/model-quality, latency, baseline and cost measurements where available. PR #20's local/backend tests do not substitute for live production checks.
 
 No additional audio upload occurred during the later production-deployment inspection.
