@@ -63,7 +63,7 @@ export const VideoWorkspaceView = forwardRef<
           : 'Waiting for processing'
 
   return (
-    <div className="max-w-7xl mx-auto w-full pb-8 sm:pb-16 flex flex-col gap-4 sm:gap-6" role="region" aria-label="Video workspace">
+    <div className="vm-workspace max-w-7xl mx-auto w-full pb-8 sm:pb-16 flex flex-col gap-4 sm:gap-6" role="region" aria-label="Video workspace">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-[#ede7e1]/80">
         <div className="space-y-1">
           <div className="flex items-center gap-2 text-xs font-semibold text-[#9a442d] uppercase tracking-wider">
@@ -87,7 +87,7 @@ export const VideoWorkspaceView = forwardRef<
           <button type="button" onClick={onBack} className="mt-5 px-4 py-2 rounded-xl bg-[#9a442d] text-white text-xs font-semibold">Browse library</button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        <div className="vm-workspace-grid grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           <section className="lg:col-span-8 flex flex-col gap-5">
             <div className="rounded-2xl bg-[#1c1b1a] overflow-hidden shadow-xl border border-[#31302f]">
               {player ?? <YouTubePlayer key={video.id} ref={ref} sourceUrl={video.source_url} title={video.title} onReadyChange={onPlayerReadyChange} onUnavailable={onPlayerUnavailable} />}
@@ -115,7 +115,7 @@ export const VideoWorkspaceView = forwardRef<
             </div>
           </section>
 
-          <aside className="lg:col-span-4 flex flex-col rounded-2xl bg-white shadow-md border border-[#ede7e1] overflow-hidden min-h-[540px] sm:min-h-[640px]">
+          <aside className="vm-workspace-tools lg:col-span-4 flex flex-col rounded-2xl bg-white shadow-md border border-[#ede7e1] overflow-hidden">
             <div className="px-3 sm:px-4 pt-4 pb-2 bg-[#f7f3f0] border-b border-[#ede7e1] flex items-center justify-between">
               <div className="flex items-center gap-2 sm:gap-3" role="tablist" aria-label="Workspace tools">
                 <button type="button" role="tab" aria-selected={rightTab === 'ask-ai'} onClick={() => selectTool('ask-ai')} className={`relative whitespace-nowrap pb-2 text-[11px] sm:text-xs font-semibold flex items-center gap-1 ${rightTab === 'ask-ai' ? 'text-[#1c1b1a]' : 'text-[#88726d]'}`}><span aria-hidden="true" className="text-[#9a442d]">✦</span><span>Ask AI</span>{rightTab === 'ask-ai' && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#9a442d] rounded-full" />}</button>

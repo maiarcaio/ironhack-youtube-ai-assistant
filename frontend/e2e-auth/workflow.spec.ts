@@ -174,6 +174,26 @@ test.describe('VideoMind authenticated browser workflow — simulated', () => {
 
     await page.getByRole('button', { name: 'Jump to 01:25 in video' }).click()
     await expect.poll(() => page.evaluate(() => (window as Window & { __videomindSeek?: number }).__videomindSeek)).toBe(85)
+
+    const before = await page.evaluate(() => {
+      const panel = document.querySelector('.vm-workspace-tools')?.getBoundingClientRect()
+      const conversation = document.querySelector('.vm-chat-panel-conversation')?.getBoundingClientRect()
+      return { panelHeight: panel?.height, conversationHeight: conversation?.height }
+    })
+    for (let index = 0; index < 5; index += 1) {
+      await page.getByLabel('Your question').fill(`Long follow-up question ${index}`)
+      await page.getByRole('button', { name: 'Send question' }).click()
+      await expect(page.getByText('Partial answer.').first()).toBeVisible()
+    }
+    const after = await page.evaluate(() => {
+      const panel = document.querySelector('.vm-workspace-tools')
+      const conversation = document.querySelector('.vm-chat-panel-conversation')
+      return { panelHeight: panel?.getBoundingClientRect().height, conversationHeight: conversation?.getBoundingClientRect().height, scrollHeight: conversation?.scrollHeight, clientHeight: conversation?.clientHeight, composerVisible: Boolean(document.querySelector('.vm-chat-composer')) }
+    })
+    expect(after.panelHeight).toBeCloseTo(before.panelHeight ?? 0, 0)
+    expect(after.conversationHeight).toBeCloseTo(before.conversationHeight ?? 0, 0)
+    expect(after.scrollHeight).toBeGreaterThan(after.clientHeight ?? 0)
+    expect(after.composerVisible).toBe(true)
     expect(statusCalls).toBeGreaterThanOrEqual(3)
   })
 

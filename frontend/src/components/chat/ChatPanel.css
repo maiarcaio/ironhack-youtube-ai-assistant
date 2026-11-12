@@ -18,6 +18,24 @@
   overflow: hidden;
 }
 
+/* The workspace provides a bounded desktop column; keep only the conversation scrollable. */
+.vm-workspace-tools > .vm-chat-panel,
+.vm-workspace-tools > div > .vm-chat-panel {
+  height: 100%;
+  min-height: 0;
+}
+
+.vm-workspace-tools > div {
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+.vm-chat-panel-conversation {
+  min-height: 0;
+  flex: 1 1 auto;
+  overscroll-behavior: contain;
+}
+
 .vm-chat-panel-qa { min-height: 680px; border-radius: 16px; }
 .vm-chat-referenced { padding: 1rem 1.5rem; border-bottom: 1px solid #ede7e1; background: #fff; }
 .vm-chat-referenced-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: .75rem; }
@@ -57,10 +75,10 @@
 
 .vm-chat-panel-conversation {
   display: flex;
-  flex: 1;
+  flex: 1 1 auto;
   flex-direction: column;
   gap: 1rem;
-  min-height: 250px;
+  min-height: 0;
   padding: 1.5rem;
   overflow-y: auto;
 }
@@ -325,5 +343,21 @@
 
   .vm-analysis-mode-options {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 1024px) {
+  .vm-workspace-grid,
+  .vm-workspace-tools {
+    min-height: 0;
+  }
+
+  .vm-workspace-tools {
+    height: clamp(34rem, calc(100dvh - 12rem), 52rem);
+  }
+
+  .vm-workspace-tools > .vm-chat-panel,
+  .vm-workspace-tools > div > .vm-chat-panel {
+    height: 100%;
   }
 }
