@@ -6,6 +6,7 @@ import type { Session } from '@supabase/supabase-js'
 import { VideoMindShell } from './components/layout/VideoMindShell'
 import type { Page } from './components/layout/VideoMindShell'
 import { SettingsView, TranscriptContent } from './components/layout/SupplementalViews'
+import { TranscriptsLibraryView } from './components/layout/TranscriptsLibraryView'
 import { VideoWorkspaceView } from './components/workspace/VideoWorkspaceView'
 import { TranscriptUploadPanel } from './components/workspace/TranscriptUploadPanel'
 import { ChatPanel } from './components/chat/ChatPanel'
@@ -160,6 +161,12 @@ function App({ session = null }: AppProps) {
     setArchivedVideos([])
     setLibraryActionError(null)
   }, [session?.user.id])
+
+  // The refresh helper is intentionally invoked only when entering this page.
+  useEffect(() => {
+    if (activePage === 'transcripts' && !useMockApi) void refreshArchivedVideos()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activePage, session?.user.id])
 
   /**
    * Seek to a source citation timestamp.
@@ -701,6 +708,20 @@ function App({ session = null }: AppProps) {
         />
       )}
 
+      {activePage === 'transcripts' && (
+        <TranscriptsLibraryView
+          videos={[...videos, ...archivedVideos]}
+          archivedVideoIds={new Set(archivedVideos.map((video) => video.id))}
+          onBackToLibrary={() => setActivePage('library')}
+          onOpenVideo={(video, seconds) => {
+            if (seconds !== undefined) pendingTranscriptSeekRef.current = { videoId: video.id, seconds }
+            setSelectedVideoId(video.id)
+            setActivePage('workspace')
+          }}
+          onSeek={handleSeekToSource}
+        />
+      )}
+
       {/*
         Keep VideoWorkspace mounted when navigating
         to the library.
@@ -745,7 +766,7 @@ function App({ session = null }: AppProps) {
           onOpenNote={handleOpenNote}
         />
       )}
-      {activePage === 'settings' && <SettingsView videos={videos} isMockMode={useMockApi} />}
+      {activePage === 'settings' && <SettingsView videos={videos} isMockMode={useMockApi} onOpenTranscripts={() => setActivePage('transcripts')} />}
       {libraryError && (
         <p className="error-message" role="alert">
           {libraryError}
