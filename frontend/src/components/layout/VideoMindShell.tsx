@@ -5,6 +5,7 @@ export type Page =
   | 'workspace'
   | 'qa'
   | 'transcript'
+  | 'transcripts'
   | 'notes'
   | 'settings'
 
@@ -21,7 +22,7 @@ const navigation: Array<{ id: Page; label: string; icon: string }> = [
   { id: 'library', label: 'Library', icon: '▣' },
   { id: 'workspace', label: 'Video Workspace', icon: '▷' },
   { id: 'qa', label: 'Q&A Assistant', icon: '✦' },
-  { id: 'transcript', label: 'Searchable Transcript', icon: '▤' },
+  { id: 'transcripts', label: 'Transcripts', icon: '▤' },
   { id: 'notes', label: 'Saved Notes', icon: '✎' },
 ]
 

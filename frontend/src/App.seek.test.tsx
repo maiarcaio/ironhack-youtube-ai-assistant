@@ -15,6 +15,11 @@ const mocks = vi.hoisted(() => ({
   seekCalls: vi.fn(),
   playerReady: true,
   onPlayerReadyChange: null as ((ready: boolean) => void) | null,
+  transcript: vi.fn(),
+}))
+
+vi.mock('./services/api/transcriptApi', () => ({
+  getVideoTranscript: mocks.transcript,
 }))
 
 // Simulate the video API without contacting FastAPI.
@@ -171,6 +176,7 @@ beforeEach(() => {
   mocks.seekCalls.mockClear()
   mocks.playerReady = true
   mocks.onPlayerReadyChange = null
+  mocks.transcript.mockReset()
 })
 
 afterEach(() => {
@@ -208,6 +214,16 @@ async function addVideo(url: string) {
 }
 
 describe('App citation-to-player navigation', () => {
+  it('opens the standalone Transcripts library and seeks the selected video after navigation', async () => {
+    mocks.transcript.mockResolvedValue({ video_id: 'test-video-1', format: 'srt', content: '1\n00:00:12,000 --> 00:00:13,000\nA grounded moment\n' })
+    renderApp()
+    const user = await addVideo('https://youtu.be/jfKfPfyJRdk')
+    await user.click(screen.getByRole('button', { name: 'Transcripts' }))
+    await user.click(await screen.findByRole('button', { name: 'Read transcript' }))
+    await user.click(await screen.findByRole('button', { name: '00:12' }))
+    await waitFor(() => expect(mocks.seekCalls).toHaveBeenCalledWith({ sourceUrl: 'https://youtu.be/jfKfPfyJRdk', seconds: 12 }))
+  })
+
   it('keeps the player and chat draft mounted while switching workspace tools', async () => {
     renderApp()
     const user = await addVideo('https://youtu.be/jfKfPfyJRdk')
@@ -357,9 +373,7 @@ describe('App citation-to-player navigation', () => {
       }),
     )
 
-    await user.click(screen.getByRole('button', {
-      name: 'Searchable Transcript',
-    }))
+    await user.click(screen.getByRole('tab', { name: 'Transcript' }))
 
     await user.click(screen.getByRole('button', {
       name: 'Jump to workspace transcript timestamp',
@@ -389,9 +403,7 @@ describe('App citation-to-player navigation', () => {
       }),
     )
 
-    await user.click(screen.getByRole('button', {
-      name: 'Searchable Transcript',
-    }))
+    await user.click(screen.getByRole('tab', { name: 'Transcript' }))
     await user.click(screen.getByRole('button', {
       name: 'Jump to workspace transcript timestamp',
     }))
@@ -418,9 +430,7 @@ describe('App citation-to-player navigation', () => {
         name: /Video One/i,
       }),
     )
-    await user.click(screen.getByRole('button', {
-      name: 'Searchable Transcript',
-    }))
+    await user.click(screen.getByRole('tab', { name: 'Transcript' }))
     await user.click(screen.getByRole('button', {
       name: 'Jump to workspace transcript timestamp',
     }))

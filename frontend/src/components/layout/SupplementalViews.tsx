@@ -135,10 +135,10 @@ export function TranscriptContent({ selectedVideo, onNavigate, onSeek, compact =
   </div>
 }
 
-export function SettingsView({ videos, isMockMode }: Pick<SupplementalProps, 'videos'> & { isMockMode: boolean }) {
+export function SettingsView({ videos, isMockMode, onOpenTranscripts }: Pick<SupplementalProps, 'videos'> & { isMockMode: boolean; onOpenTranscripts?: () => void }) {
   return <div className="vm-screen vm-settings">
     <ScreenHeader eyebrow="SETTINGS / WORKSPACE PREFERENCES" title="VideoMind settings" description="Controls are shown only where the connected services can support them." />
-    <section className="vm-paper vm-settings-card"><div className="vm-setting-icon">↓</div><div><h2>Transcript export</h2><p>Saved Notes can already be exported as Markdown from the Saved Notes page. Full transcript export requires a backend transcript-read contract.</p></div><button type="button" disabled>Unavailable</button></section>
+    <section className="vm-paper vm-settings-card"><div className="vm-setting-icon">↓</div><div><h2>Transcript export</h2><p>Open the Transcripts library to read stored transcripts and export one or all of them from your authenticated account.</p></div><button type="button" onClick={onOpenTranscripts} disabled={!onOpenTranscripts}>Open Transcripts</button></section>
     <section className="vm-paper vm-settings-card"><div className="vm-setting-icon">◌</div><div><h2>{isMockMode ? 'Demonstration data' : 'Authentication'}</h2><p>{isMockMode ? 'This explicitly configured demo library is stored only for the current browser session.' : 'Your library is scoped to the signed-in account. Use the existing sign-out control in the header.'}</p></div><span className="vm-status">{videos.length} video{videos.length === 1 ? '' : 's'} in this library</span></section>
     <section className="vm-paper vm-settings-card"><div className="vm-setting-icon">✦</div><div><h2>Grounded answers</h2><p>{isMockMode ? 'Chat remains unavailable for demo videos because they have not been indexed by the real backend.' : 'Chat is enabled only after the backend reports a video ready; citations use returned source timestamps.'}</p></div><span className="vm-status">{isMockMode ? 'Demo workflow' : 'Connected workflow'}</span></section>
   </div>
