@@ -122,6 +122,11 @@
   font-size: 0.85rem;
 }
 
+.vm-chat-loading { display: inline-flex; align-items: center; gap: .6rem; }
+.vm-chat-loading-spinner { width: .85rem; height: .85rem; border: 2px solid #e7c2b7; border-top-color: #9a442d; border-radius: 50%; animation: vm-chat-spin .8s linear infinite; }
+@keyframes vm-chat-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .vm-chat-loading-spinner { animation: none; } }
+
 .vm-chat-panel-error {
   margin: 0 1.5rem 1rem;
   padding: 0.8rem 1rem;

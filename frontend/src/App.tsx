@@ -86,6 +86,8 @@ function App({ session = null }: AppProps) {
     useState<Record<string, string>>({})
   const [libraryError, setLibraryError] = useState<string | null>(null)
   const [libraryActionError, setLibraryActionError] = useState<string | null>(null)
+  const [, setHiddenVideoIds] = useState<Set<string>>(() => new Set())
+  const hiddenVideoIdsRef = useRef<Set<string>>(new Set())
   const libraryRequestRef = useRef(0)
   const archivedRequestRef = useRef(0)
   const sessionUserIdRef = useRef(session?.user.id ?? null)
@@ -125,7 +127,7 @@ function App({ session = null }: AppProps) {
     try {
       const response = await activeVideoApi.listArchivedVideos()
       if (requestId !== archivedRequestRef.current || ownerId !== sessionUserIdRef.current) return false
-      setArchivedVideos(response.videos.map(toVideo).filter((video): video is Video => video !== null))
+      setArchivedVideos(response.videos.map(toVideo).filter((video): video is Video => video !== null && !hiddenVideoIdsRef.current.has(video.id)))
       return true
     } catch (error) {
       if (requestId !== archivedRequestRef.current || ownerId !== sessionUserIdRef.current) return false
@@ -139,7 +141,13 @@ function App({ session = null }: AppProps) {
       setLibraryActionError(null)
       if (action === 'archive') await activeVideoApi.archiveVideo(video.id)
       if (action === 'restore') await activeVideoApi.restoreVideo(video.id)
-      if (action === 'delete') await activeVideoApi.deleteVideo(video.id)
+      if (action === 'delete') {
+        await activeVideoApi.deleteVideo(video.id)
+        hiddenVideoIdsRef.current = new Set(hiddenVideoIdsRef.current).add(video.id)
+        setHiddenVideoIds(hiddenVideoIdsRef.current)
+        setVideos((current) => current.filter((item) => item.id !== video.id))
+        setArchivedVideos((current) => current.filter((item) => item.id !== video.id))
+      }
       if (selectedVideoId === video.id) { setSelectedVideoId(null); setActivePage('library') }
       const activeRefreshed = await loadLibrary()
       const archivedRefreshed = await refreshArchivedVideos()
@@ -151,6 +159,8 @@ function App({ session = null }: AppProps) {
 
   useEffect(() => {
     archivedRequestRef.current += 1
+    hiddenVideoIdsRef.current = new Set()
+    setHiddenVideoIds(hiddenVideoIdsRef.current)
     setArchivedVideos([])
     setLibraryActionError(null)
   }, [session?.user.id])
@@ -342,7 +352,7 @@ function App({ session = null }: AppProps) {
 
       const loadedVideos = response.videos
         .map(toVideo)
-        .filter((video): video is Video => video !== null)
+        .filter((video): video is Video => video !== null && !hiddenVideoIdsRef.current.has(video.id))
 
       setVideos(loadedVideos)
       setLibraryError(null)

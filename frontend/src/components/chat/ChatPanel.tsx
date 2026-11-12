@@ -82,6 +82,8 @@ export function ChatPanel({
     Record<string, boolean>
   >({})
 
+  const [receivedTokenByVideo, setReceivedTokenByVideo] = useState<Record<string, boolean>>({})
+
   // Terra is the default; Sol enables Deep Analysis.
   const [analysisMode, setAnalysisMode] = useState<ChatAnalysisMode>('auto')
 
@@ -185,6 +187,7 @@ export function ChatPanel({
       ...current,
       [requestVideoId]: true,
     }))
+    setReceivedTokenByVideo((current) => ({ ...current, [requestVideoId]: false }))
 
     setErrors((current) => ({
       ...current,
@@ -254,6 +257,7 @@ export function ChatPanel({
 
             onToken(text) {
               streamedAnswer += text
+              setReceivedTokenByVideo((current) => ({ ...current, [requestVideoId]: true }))
 
               updateAssistantMessage(
                 requestVideoId,
@@ -417,10 +421,12 @@ export function ChatPanel({
           <div
             className="vm-chat-loading"
             role="status"
+            aria-live="polite"
           >
-            {stream
-              ? 'Streaming answer from VideoMind AI…'
-              : 'Retrieving evidence and preparing an answer…'}
+            <span className="vm-chat-loading-spinner" aria-hidden="true" />
+            {stream && receivedTokenByVideo[videoId]
+              ? 'Receiving answer…'
+              : 'Preparing grounded answer…'}
           </div>
         )}
       </div>
