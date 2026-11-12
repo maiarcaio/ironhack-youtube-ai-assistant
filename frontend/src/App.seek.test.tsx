@@ -357,9 +357,7 @@ describe('App citation-to-player navigation', () => {
       }),
     )
 
-    await user.click(screen.getByRole('button', {
-      name: 'Searchable Transcript',
-    }))
+    await user.click(screen.getByRole('tab', { name: 'Transcript' }))
 
     await user.click(screen.getByRole('button', {
       name: 'Jump to workspace transcript timestamp',
@@ -389,9 +387,7 @@ describe('App citation-to-player navigation', () => {
       }),
     )
 
-    await user.click(screen.getByRole('button', {
-      name: 'Searchable Transcript',
-    }))
+    await user.click(screen.getByRole('tab', { name: 'Transcript' }))
     await user.click(screen.getByRole('button', {
       name: 'Jump to workspace transcript timestamp',
     }))
@@ -418,9 +414,7 @@ describe('App citation-to-player navigation', () => {
         name: /Video One/i,
       }),
     )
-    await user.click(screen.getByRole('button', {
-      name: 'Searchable Transcript',
-    }))
+    await user.click(screen.getByRole('tab', { name: 'Transcript' }))
     await user.click(screen.getByRole('button', {
       name: 'Jump to workspace transcript timestamp',
     }))

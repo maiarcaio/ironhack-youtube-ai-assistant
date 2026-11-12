@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 
 import { getVideoTranscript } from '../../services/api/transcriptApi'
@@ -10,7 +10,6 @@ interface Props {
   archivedVideoIds?: Set<string>
   onOpenVideo: (video: Video, seconds?: number) => void
   onBackToLibrary: () => void
-  onSeek: (seconds: number) => void
 }
 
 function timestamp(seconds: number): string {
@@ -28,7 +27,7 @@ function mark(text: string, query: string): ReactNode {
   )
 }
 
-export function TranscriptsLibraryView({ videos, archivedVideoIds = new Set(), onOpenVideo, onBackToLibrary, onSeek }: Props) {
+export function TranscriptsLibraryView({ videos, archivedVideoIds = new Set(), onOpenVideo, onBackToLibrary }: Props) {
   const [query, setQuery] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [segments, setSegments] = useState<TranscriptSegment[]>([])
@@ -39,6 +38,10 @@ export function TranscriptsLibraryView({ videos, archivedVideoIds = new Set(), o
   const [readerQuery, setReaderQuery] = useState('')
   const [exporting, setExporting] = useState(false)
   const [exportMessage, setExportMessage] = useState<string | null>(null)
+  const requestRef = useRef(0)
+  const mountedRef = useRef(true)
+
+  useEffect(() => () => { mountedRef.current = false; requestRef.current += 1 }, [])
 
   const uniqueVideos = useMemo(() => Array.from(new Map(videos.map((video) => [video.id, video])).values()), [videos])
   const filteredVideos = useMemo(() => {
@@ -46,12 +49,14 @@ export function TranscriptsLibraryView({ videos, archivedVideoIds = new Set(), o
     return value ? uniqueVideos.filter((video) => `${video.title} ${video.source_url}`.toLocaleLowerCase().includes(value)) : uniqueVideos
   }, [query, uniqueVideos])
   const selectedVideo = uniqueVideos.find((video) => video.id === selectedId) ?? null
+  const selectedArchived = selectedVideo ? archivedVideoIds.has(selectedVideo.id) || Boolean(selectedVideo.archived_at) : false
   const filteredSegments = useMemo(() => {
     const value = readerQuery.trim().toLocaleLowerCase()
     return value ? segments.filter((segment) => segment.text.toLocaleLowerCase().includes(value)) : segments
   }, [readerQuery, segments])
 
   async function openTranscript(video: Video): Promise<void> {
+    const requestId = ++requestRef.current
     setSelectedId(video.id)
     setLoading(true)
     setError(null)
@@ -60,7 +65,8 @@ export function TranscriptsLibraryView({ videos, archivedVideoIds = new Set(), o
     setSourceContent(null)
     try {
       const transcript = await getVideoTranscript(video.id)
-      if (!transcript) {
+      if (!mountedRef.current || requestId !== requestRef.current) return
+      if (!transcript || transcript.video_id !== video.id) {
         setFormat(null)
         setError('No transcript is available for this video yet.')
         return
@@ -69,9 +75,10 @@ export function TranscriptsLibraryView({ videos, archivedVideoIds = new Set(), o
       setSourceContent(transcript.content)
       setSegments(parseTranscript(transcript.content, transcript.format))
     } catch (caught: unknown) {
+      if (!mountedRef.current || requestId !== requestRef.current) return
       setError(caught instanceof Error ? caught.message : 'Unable to load this transcript.')
     } finally {
-      setLoading(false)
+      if (mountedRef.current && requestId === requestRef.current) setLoading(false)
     }
   }
 
@@ -95,7 +102,9 @@ export function TranscriptsLibraryView({ videos, archivedVideoIds = new Set(), o
     setExportMessage(null)
     const sections: string[] = []
     let failures = 0
+    const requestId = ++requestRef.current
     for (const video of uniqueVideos) {
+      if (!mountedRef.current || requestId !== requestRef.current) return
       try {
         const transcript = await getVideoTranscript(video.id)
         if (!transcript) { failures += 1; continue }
@@ -105,8 +114,10 @@ export function TranscriptsLibraryView({ videos, archivedVideoIds = new Set(), o
     if (sections.length > 0) {
       download(`videomind-transcripts-${new Date().toISOString().slice(0, 10)}.md`, `# VideoMind transcripts\n\nStored transcripts exported from the authenticated browser session.\n\n${sections.join('\n\n---\n\n')}`)
     }
-    setExportMessage(failures ? `Exported ${sections.length}; ${failures} transcript${failures === 1 ? '' : 's'} could not be loaded.` : `Exported ${sections.length} transcript${sections.length === 1 ? '' : 's'}.`)
-    setExporting(false)
+    if (mountedRef.current && requestId === requestRef.current) {
+      setExportMessage(failures ? `Exported ${sections.length}; ${failures} transcript${failures === 1 ? '' : 's'} could not be loaded.` : `Exported ${sections.length} transcript${sections.length === 1 ? '' : 's'}.`)
+      setExporting(false)
+    }
   }
 
   return <div className="vm-screen">
@@ -138,7 +149,7 @@ export function TranscriptsLibraryView({ videos, archivedVideoIds = new Set(), o
         {selectedVideo && <><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs uppercase tracking-[0.16em] text-[#9a442d]">{format ?? 'TRANSCRIPT'}</p><h2>{selectedVideo.title}</h2></div>{sourceContent && <button type="button" onClick={exportSelected} className="text-sm text-[#9a442d]">Download</button>}</div>
           {loading && <p role="status" className="mt-5">Loading transcript…</p>}
           {!loading && error && <div role="alert" className="vm-unavailable-panel mt-5"><h2>Transcript unavailable</h2><p>{error}</p></div>}
-          {!loading && !error && segments.length > 0 && <><label className="vm-search-surface mt-5 block"><span>⌕</span><input aria-label="Search open transcript" placeholder="Search transcript text" value={readerQuery} onChange={(event) => setReaderQuery(event.target.value)} /></label><p className="vm-transcript-count">{filteredSegments.length} of {segments.length} segments</p><div className="vm-transcript-segments">{filteredSegments.map((segment) => <article className="vm-transcript-segment" key={segment.id}>{segment.startSeconds === null ? <span className="vm-transcript-time">No timestamp</span> : <button type="button" className="vm-transcript-time" onClick={() => { const seconds = segment.startSeconds ?? 0; onOpenVideo(selectedVideo, seconds); onSeek(seconds) }}>{timestamp(segment.startSeconds)}</button>}<p>{mark(segment.text, readerQuery)}</p></article>)}</div></>}
+          {!loading && !error && segments.length > 0 && <><label className="vm-search-surface mt-5 block"><span>⌕</span><input aria-label="Search open transcript" placeholder="Search transcript text" value={readerQuery} onChange={(event) => setReaderQuery(event.target.value)} /></label><p className="vm-transcript-count">{filteredSegments.length} of {segments.length} segments</p>{selectedArchived && <p className="text-sm text-[#88726d] mt-3">Restore this record in Library before opening the player or seeking to a timestamp.</p>}<div className="vm-transcript-segments">{filteredSegments.map((segment) => <article className="vm-transcript-segment" key={segment.id}>{segment.startSeconds === null || selectedArchived ? <span className="vm-transcript-time">{segment.startSeconds === null ? 'No timestamp' : `${timestamp(segment.startSeconds)} · Restore first`}</span> : <button type="button" className="vm-transcript-time" onClick={() => onOpenVideo(selectedVideo, segment.startSeconds ?? 0)}>{timestamp(segment.startSeconds)}</button>}<p>{mark(segment.text, readerQuery)}</p></article>)}</div></>}
         </>}
       </section>
     </div>

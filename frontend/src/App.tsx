@@ -721,7 +721,6 @@ function App({ session = null }: AppProps) {
             setSelectedVideoId(video.id)
             setActivePage('workspace')
           }}
-          onSeek={handleSeekToSource}
         />
       )}
 
