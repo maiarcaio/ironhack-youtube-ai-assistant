@@ -2,7 +2,7 @@
 
 This document describes the frontend deployment boundary. It does not apply Render settings or contain backend credentials.
 
-The production deployment tracks `main`. PR #16, PR #17 and PR #24 are merged. As of November 12, 2026, Vercel reports production deployment `5n1LAYQLa9GpwMBQHXkHPtxYHsrK` Ready at `https://videomind-ai-ironhack.vercel.app`, serving `main` commit `b7ef04802cad674370e7a792e60e61e563b9edc2`. Re-check Vercel and backend availability before treating this as complete live acceptance evidence.
+The production deployment tracks `main`. PR #16, PR #17, PR #24 and PR #27 are merged. The integrated `main` commit is `ab1d6192aa7fdcff26395b9cd50dd8cb153370ef`. Vercel production remains at `https://videomind-ai-ironhack.vercel.app`; confirm the current deployment identity in Vercel before treating a new deploy as complete live acceptance evidence.
 
 ## Architecture
 
@@ -49,4 +49,4 @@ The frontend owner controls Vercel environment variables and deployment configur
 
 Use Vercel’s existing deployment history to select a prior known-good frontend deployment if a frontend release must be rolled back. Do not change Render or Supabase settings as part of a frontend rollback.
 
-Audio acceptance remains dependent on backend storage, Whisper processing, workers, indexing, signed playback, and backend CORS. A successful Vercel build or OPTIONS preflight is not proof that the full audio pipeline works.
+Audio acceptance remains dependent on backend storage, Whisper processing, workers, indexing and signed playback. The backend CORS fix is merged and the production DELETE and POST preflights return HTTP 200 with Authorization and Content-Type allowed. A preflight is not proof that the full audio pipeline works.

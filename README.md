@@ -18,7 +18,7 @@ Mock mode is intentionally separate from authenticated mode. Mock data and answe
 
 ## Release status
 
-The production domain and `main` branch are the authoritative released baseline. PR #16 (authenticated audio upload/player), PR #17 (unified workspace/navigation and transcript lifecycle correction) and PR #24 (library management) are merged into `main`; PR #18 remains the documentation review. Production acceptance should still be verified against the deployed commit and backend availability.
+The production domain and `main` branch are the authoritative released baseline. PR #16 (authenticated audio upload/player), PR #17 (unified workspace/navigation and transcript lifecycle correction), PR #24 (library management) and PR #27 (authenticated DELETE CORS preflight) are merged into `main`; PR #18 remains the documentation review. Current integrated main is `ab1d6192aa7fdcff26395b9cd50dd8cb153370ef`.
 
 ## Architecture
 
@@ -94,7 +94,7 @@ docs/           Acceptance and project documentation
 
 ## Known limitations
 
-- Production audio acceptance depends on Supabase Storage, Whisper processing, worker availability, indexing, signed playback, and backend CORS.
+- Production audio acceptance depends on Supabase Storage, Whisper processing, worker availability, indexing and signed playback. The deployed backend now permits authenticated DELETE preflight requests from the production frontend.
 - Automatic YouTube caption acquisition can fail in cloud environments; the documented recovery path is an authorized transcript or audio upload.
 - Chat history is persisted by the backend, but this frontend does not restore prior conversations after a browser refresh.
 - The YouTube iframe is cross-origin, so automated local checks can verify timestamp dispatch and player continuity but cannot independently read the iframe's playback clock.
