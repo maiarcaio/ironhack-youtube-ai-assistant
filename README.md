@@ -18,7 +18,9 @@ Mock mode is intentionally separate from authenticated mode. Mock data and answe
 
 ## Release status
 
-The production domain and `main` branch are the authoritative released baseline. PR #16 (audio upload/player), PR #17 (workspace and transcript lifecycle), PR #24 (library management), PR #25 (removal, citations and streaming UX), PR #26 (standalone Transcripts Library) and PR #27 (authenticated DELETE CORS preflight) are merged into `main`; PR #18 remains the documentation review. Current integrated main is `ab1d6192aa7fdcff26395b9cd50dd8cb153370ef`.
+The `main` branch is the integrated application baseline; frontend and backend deploys are managed independently. The code includes authenticated ingestion, transcript recovery, Terra/Sol answers, a standalone Transcripts Library, audio playback, and owner-scoped archive/restore/soft-delete. Production behavior was accepted on selected real records; that acceptance does not prove that every provider or every possible video will succeed.
+
+For operational release checks, use [deployment/README.md](deployment/README.md). For dated evidence and known gaps, use [docs/FRONTEND_ACCEPTANCE_2026-11-11.md](docs/FRONTEND_ACCEPTANCE_2026-11-11.md). Historic release commits remain in Git; do not treat hardcoded commits in dated reports as the current deployment identifier.
 
 ## Architecture
 
@@ -63,17 +65,30 @@ The backend setup and protected API contract are documented in [`backend/README.
 
 ## Validation
 
-From `frontend/`:
+Pull requests are checked by the repository's [CI workflow](.github/workflows/ci.yml): frontend lint, build and Vitest; backend maintained offline pytest suite. No CI job uses production credentials, live API calls, customer data or billable model requests.
+
+For local verification:
 
 ```bash
-npm run build
+cd frontend
+npm ci
 npm run lint
-npm test -- --run
+npm run build
+npm test
+# Optional deterministic browser tests (requires Playwright Chromium)
 npm run test:e2e
 npm run test:e2e:auth
 ```
 
-The mock and intercepted browser suites are offline simulations. They validate UI and adapters, not Render, Supabase Storage, Whisper, Pinecone, model latency, or real YouTube playback. Real acceptance results are recorded separately in [`docs/FRONTEND_ACCEPTANCE_2026-11-11.md`](docs/FRONTEND_ACCEPTANCE_2026-11-11.md).
+```bash
+cd backend
+python -m pip install -r requirements-dev.txt -r requirements-supabase.txt -r requirements-youtube.txt
+python -m pytest -q tests
+```
+
+Browser suites use mock/intercepted services; they do not establish live connectivity. The repository also contains older top-level `tests/unit/` scripts written before current auth/analysis contracts; see [CONTRIBUTING.md](CONTRIBUTING.md) for test scope and debt.
+
+Evaluation code lives under `backend/scripts/`. Its historical six-question experiment is distinct from the team-reported 27-run LangSmith results. Review [evaluation/README.md](evaluation/README.md) before citing quality metrics.
 
 ## Deployment
 
@@ -85,20 +100,27 @@ Vercel and Render project settings are external configuration and must be confir
 ## Repository structure
 
 ```text
-frontend/       React application, Supabase client, API adapters, players, notes, and browser tests
-backend/        FastAPI service, ingestion/audio workers, agent tools, and backend tests
-supabase/       Database migrations and security policies
-evaluation/     Evaluation assets and project placeholders
-docs/           Acceptance and project documentation
+frontend/             React UI, API clients and automated browser/unit tests
+backend/              FastAPI, worker, model agents, retrieval and backend tests
+supabase/migrations/   PostgreSQL schema, ownership policies and library lifecycle
+evaluation/           Evaluation provenance and reproducibility requirements
+deployment/           Service configuration guidance and non-destructive smoke script
+docs/                 Engineering handover and dated acceptance history
+.github/workflows/    Automated pull-request validation
+tests/unit/           Historical tests requiring API-contract modernization
 ```
+
+New contributors: [CONTRIBUTING.md](CONTRIBUTING.md). Operational boundaries: [docs/ENGINEERING_HANDOVER.md](docs/ENGINEERING_HANDOVER.md).
 
 ## Known limitations
 
-- Production audio acceptance depends on Supabase Storage, Whisper processing, worker availability, indexing and signed playback. The deployed backend now permits authenticated DELETE preflight requests from the production frontend.
-- Automatic YouTube caption acquisition can fail in cloud environments; the documented recovery path is an authorized transcript or audio upload.
-- Chat history is persisted by the backend, but this frontend does not restore prior conversations after a browser refresh.
-- The YouTube iframe is cross-origin, so automated local checks can verify timestamp dispatch and player continuity but cannot independently read the iframe's playback clock.
-- Citation quality, latency, cost, memory usage, and accuracy require the backend evaluation artifacts and a larger measured dataset; no unverified performance numbers are claimed here.
+- Automatic YouTube caption acquisition can fail in cloud environments; authorized transcript/audio upload is the supported recovery path.
+- The ingestion worker's availability depends on the configured Render service/process lifecycle; it is not guaranteed to operate continuously when infrastructure suspends.
+- Server-side chat history persists in Supabase, but the current frontend does not automatically restore previous threads after browser refresh.
+- Browser-local notes do not sync across devices.
+- The YouTube iframe is cross-origin; browser tests cannot read its internal playback clock.
+- RAG quality and cost numbers are dataset-specific; detailed final LangSmith evidence and a methodologically matched baseline have not yet been sanitized and committed.
+- Existing failed-status videos may lack transcript data, so bulk export can report partial availability.
 
 ## Team responsibilities
 
