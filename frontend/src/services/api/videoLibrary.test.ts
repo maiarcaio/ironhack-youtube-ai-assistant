@@ -81,6 +81,15 @@ describe('FastAPI V1 video library', () => {
     expect(result.videos[0].source_url).toBeNull()
   })
 
+  it('preserves a valid backend thumbnail URL', () => {
+    const result = validateVideoListResponse({ videos: [{ video_id: 'video-thumb', title: 'Thumbnail', status: 'completed', source_url: 'https://youtu.be/jNQXAC9IVRw', thumbnail_url: 'https://img.youtube.com/vi/jNQXAC9IVRw/hqdefault.jpg' }] })
+    expect(result.videos[0].thumbnail_url).toContain('jNQXAC9IVRw')
+  })
+
+  it('rejects unsafe thumbnail metadata', () => {
+    expect(() => validateVideoListResponse({ videos: [{ video_id: 'video-thumb', title: 'Thumbnail', status: 'completed', source_url: 'https://youtu.be/jNQXAC9IVRw', thumbnail_url: 'javascript:alert(1)' }] })).toThrow('Invalid video library response from the API.')
+  })
+
   it('rejects a missing videos array', () => {
     expect(() =>
       validateVideoListResponse({}),
