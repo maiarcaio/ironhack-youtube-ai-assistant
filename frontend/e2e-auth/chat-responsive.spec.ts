@@ -17,6 +17,12 @@ test('keeps the responsive workspace readable and scrollable across representati
     const body = new ReadableStream({ start(controller) { controller.enqueue(encoder.encode(`event: meta\ndata: {"video_id":"${UUID}","thread_id":"layout-thread"}\n\n`)); controller.enqueue(encoder.encode(`event: token\ndata: {"text":${JSON.stringify(answer)}}\n\n`)); controller.enqueue(encoder.encode('event: sources\ndata: {"sources":[{"chunk_id":"owner:video:0001","excerpt":"Grounded evidence","start_seconds":12,"end_seconds":18,"source_type":"transcript"}]}\n\n')); controller.enqueue(encoder.encode(`event: done\ndata: {"thread_id":"layout-thread","answer":${JSON.stringify(answer)},"insufficient_evidence":false}\n\n`)); controller.close() } })
     await route.fulfill({ status: 200, headers: { 'content-type': 'text/event-stream' }, body: await new Response(body).text() })
   })
+  await page.route('https://www.youtube.com/iframe_api', async (route) => {
+    await route.fulfill({
+      contentType: 'application/javascript',
+      body: `window.YT={Player:function(_element,options){this.seekTo=(seconds)=>window.__videomindSeek=seconds;this.getCurrentTime=()=>0;this.destroy=()=>{};setTimeout(()=>options.events.onReady({target:this}),0)}};window.onYouTubeIframeAPIReady();`,
+    })
+  })
 
   await page.goto('/')
   await page.getByLabel('Email').fill('chat-layout@example.test')
@@ -27,7 +33,35 @@ test('keeps the responsive workspace readable and scrollable across representati
   const question = page.getByLabel('Your question')
   await question.fill('Explain the lecture')
   await page.getByRole('button', { name: 'Send question' }).click()
-  await expect(page.getByText('Paragraph 1 explains a grounded concept with readable prose and a source reference.')).toBeVisible()
+  await expect(page.getByText('Paragraph 1 explains a grounded concept with readable prose and a source reference.').first()).toBeVisible()
+
+  const conversation = page.locator('.vm-chat-panel-conversation')
+  await expect.poll(async () => conversation.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true)
+  await conversation.evaluate((element) => { element.scrollTop = 0 })
+  const positionBeforeUpdate = await conversation.evaluate((element) => element.scrollTop)
+  await question.fill('Follow up with more detail')
+  await page.getByRole('button', { name: 'Send question' }).click()
+  await expect(page.getByText('Paragraph 8 explains a grounded concept with readable prose and a source reference.')).toBeVisible()
+  const positionAfterUpdate = await conversation.evaluate((element) => element.scrollTop)
+  expect(positionBeforeUpdate).toBe(0)
+  expect(positionAfterUpdate).toBeLessThan(80)
+
+  await expect(page.getByRole('button', { name: /Terra Quick answers/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Sol Deep Analysis/ })).toBeVisible()
+  await page.getByRole('button', { name: /Sol Deep Analysis/ }).click()
+  await expect(page.getByRole('button', { name: /Sol Deep Analysis/ })).toHaveAttribute('aria-pressed', 'true')
+  await page.getByRole('button', { name: /Terra Quick answers/ }).click()
+  await expect(page.getByRole('button', { name: /Terra Quick answers/ })).toHaveAttribute('aria-pressed', 'true')
+
+  const citation = page.getByRole('button', { name: 'Jump to 00:12 in video' }).first()
+  await expect(citation).toBeVisible()
+  await citation.click()
+  await expect.poll(() => page.evaluate(() => (window as Window & { __videomindSeek?: number }).__videomindSeek)).toBe(12)
+
+  await page.getByRole('tab', { name: 'Transcript' }).click()
+  await page.getByRole('tab', { name: /Notes/ }).click()
+  await page.getByRole('tab', { name: 'Ask AI' }).click()
+  await expect(page.getByText('Paragraph 1 explains a grounded concept with readable prose and a source reference.').first()).toBeVisible()
 
   let overflowSeen = false
   for (const width of [375, 768, 1024, 1280, 1440, 1920]) {
