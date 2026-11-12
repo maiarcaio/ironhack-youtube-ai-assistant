@@ -28,29 +28,25 @@ The React frontend is maintained separately within the same project.
 
 **Current limitation:** automatic YouTube caption extraction may return HTTP 403 from cloud-hosted environments such as Render. When that happens, the supported recovery path is a transcript upload or an authorized audio upload. The application does **not** claim to download arbitrary YouTube audio automatically.
 
-## Local Setup (Windows PowerShell)
+## Local development
 
-Run commands from the `backend/` directory.
+Run commands from `backend/`. Use **Python 3.11** and an isolated virtual environment.
 
-### 1. Create and activate the virtual environment
+macOS/Linux:
+```bash
+python3.11 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements-dev.txt -r requirements-supabase.txt -r requirements-youtube.txt
+```
 
+Windows PowerShell:
 ```powershell
 py -3.11 -m venv .venv
 .\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements-dev.txt -r requirements-supabase.txt -r requirements-youtube.txt
 ```
 
-### 2. Install dependencies
-
-```powershell
-python -m pip install -r requirements-supabase.txt
-python -m pip install -r requirements-youtube.txt
-```
-
-Both files include the base `requirements.txt`. The first adds the Supabase client; the second adds `youtube-transcript-api`.
-
-### 3. Configure environment variables
-
-Create `backend/.env` using the following names (replace placeholders locally):
+Create `backend/.env` locally; never commit it:
 
 ```dotenv
 OPENAI_API_KEY=your_openai_api_key
@@ -58,55 +54,55 @@ PINECONE_API_KEY=your_pinecone_api_key
 PINECONE_INDEX_NAME=videomind-rag
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SECRET_KEY=your_backend_only_secret_key
-SUPABASE_PUBLISHABLE_KEY=your_publishable_key
+SUPABASE_PUBLISHABLE_KEY=your_public_publishable_key
 LANGSMITH_TRACING=true
 LANGSMITH_API_KEY=your_langsmith_api_key
 LANGSMITH_PROJECT=videomind-ai
-CORS_ORIGINS=http://localhost:5173,http://localhost:5177
+CORS_ORIGINS=http://localhost:5173
 RUN_INGESTION_WORKER=true
 ```
 
-- `SUPABASE_SECRET_KEY` is **backend-only**. Never place it in React environment variables or client-side bundles.
-- The publishable key is intended for client-side authentication and is also used by an optional local token helper.
-- `LANGSMITH_*` variables are needed for tracing/evaluation, not for basic API startup.
-- `RUN_INGESTION_WORKER=true` runs the ingestion polling loop in the API process while that process is active.
-- Keep `.env` out of Git; never commit keys or bearer tokens.
+- `SUPABASE_SECRET_KEY` is **backend-only**; only the public publishable key belongs in the browser.
+- Apply the reviewed Supabase migrations from `../supabase/migrations/` in order **before** deploying code that depends on new columns. Confirm migration state rather than blindly reapplying SQL.
+- Configure a Pinecone index compatible with the embedding model (the tested index used 1,536 dimensions). Supply a real Supabase Auth user access token for authenticated API calls.
+- `RUN_INGESTION_WORKER=true` runs the polling worker inside the FastAPI process. Do not separately launch a second worker against the same queue without first reviewing operational ownership.
 
-### 4. Prepare external services
-
-- Create a Supabase project and apply the schema in `../supabase/migrations/20261106000000_videomind_core.sql` if it has not already been applied. Do not apply the same migration twice.
-- Configure a Pinecone index compatible with the configured embedding model (the tested index uses **1,536-dimensional vectors**).
-- Create a Supabase Auth test user. Protected endpoints require a valid **user access token (JWT)**, not a publishable key or service key.
-
-### 5. Start the API
-
-```powershell
+Start the API:
+```bash
 python -m uvicorn app.main:app --reload --port 8000
 ```
 
-- API: http://127.0.0.1:8000
-- Health: http://127.0.0.1:8000/health
-- Swagger: http://127.0.0.1:8000/docs
-- OpenAPI: http://127.0.0.1:8000/openapi.json
+Open `http://localhost:8000/docs` for Swagger, `/openapi.json` for the live schema, and `/health` for a read-only health check. Most `/api/v1/` endpoints require a valid Supabase bearer token.
 
-In Swagger, click **Authorize** and enter the Supabase user access token for protected routes.
+Offline tests:
+```bash
+python -m pytest -q tests
+```
+
+This is the maintained backend test suite. Older top-level `../tests/unit/` files require adaptation to the current authentication and Terra/Sol contracts before inclusion in a combined test claim.
 
 ## API Endpoints
 
 | Method | Endpoint | Purpose |
 |---|---|---|
-| `GET` | `/` | API status message |
-| `GET` | `/health` | Health check |
-| `POST` | `/api/v1/videos/ingest` | Queue a YouTube video; returns a backend-generated UUID |
-| `GET` | `/api/v1/videos` | List the authenticated user's videos |
-| `GET` | `/api/v1/videos/{video_id}/status` | Check video processing status |
-| `POST` | `/api/v1/transcripts/upload` | Upload TXT/SRT/VTT fallback for a failed video |
-| `POST` | `/api/v1/audio/transcribe` | Upload audio for Whisper transcription and fallback ingestion |
-| `POST` | `/api/v1/chat` | Grounded agent-based QA for a completed video |
-| `POST` | `/api/v1/chat/stream` | Stream an agent answer via SSE |
-| `POST` | `/chat` | Legacy authenticated echo endpoint; **not** RAG |
+| GET | `/`, `/health` | Public status and health |
+| POST | `/api/v1/videos/ingest` | Queue an authorized YouTube URL |
+| POST | `/api/v1/videos/upload` | Queue an authorized media upload |
+| GET | `/api/v1/videos` | Active videos owned by the user |
+| GET | `/api/v1/videos?archived=true` | Archived owned videos |
+| GET | `/api/v1/videos/{video_id}/status` | Ingestion status |
+| GET | `/api/v1/videos/{video_id}/playback` | Time-limited signed playback for private media |
+| GET | `/api/v1/videos/{video_id}/moments` | Timed transcript moments |
+| POST | `/api/v1/videos/{video_id}/archive` | Archive without deleting underlying data |
+| POST | `/api/v1/videos/{video_id}/restore` | Restore an archived video |
+| DELETE | `/api/v1/videos/{video_id}` | Owner-scoped logical deletion; HTTP 204 on success |
+| POST | `/api/v1/transcripts/upload` | TXT/SRT/VTT fallback for a failed video |
+| POST | `/api/v1/audio/transcribe` | Whisper audio fallback for a failed video |
+| POST | `/api/v1/chat` | Grounded REST QA |
+| POST | `/api/v1/chat/stream` | Grounded SSE QA |
+| POST | `/chat` | Legacy authenticated echo; not RAG |
 
-All `/api/v1/` routes above require authentication. The audio route is part of the **local backend changes** and must be deployed before it is available on the public Render API.
+Protected routes verify the Supabase user JWT and enforce owner/video scope. The frontend reads stored transcripts directly through authenticated Supabase RLS; there is no separate backend transcript-read endpoint. Soft-delete does **not** physically erase Pinecone vectors, stored audio, or related database rows.
 
 ### Example: Register a video
 
@@ -162,43 +158,35 @@ React client (Supabase login)
 
 Supabase Row Level Security (RLS) protects authenticated reads. Backend writes use a privileged Supabase client **only after request authentication and ownership checks**.
 
-## Evaluation and Testing
+## Evaluation and testing
 
-The RAG evaluation scripts are in `backend/scripts/`:
+**Automated local/backend tests** are in `backend/tests/`; run `python -m pytest -q tests` from this directory. Tests use mocked services and do not establish live model quality, storage availability, or real account isolation without separate acceptance.
 
-- `create_evaluation_dataset.py` — creates the LangSmith dataset from `evaluation_questions.json`.
-- `rag_evaluators.py` — computes LLM-judged correctness, groundedness, and retrieval relevance.
-- `run_rag_evaluation.py` — runs the dataset against the local agent and uploads evaluation results to LangSmith.
+The LangSmith evaluation scripts are:
+- `scripts/create_evaluation_dataset.py`
+- `scripts/run_rag_evaluation.py`
+- `scripts/rag_evaluators.py`
 
-The evaluation asset folder is expected beside the repository, at `../videomind-test-assets/` relative to the repository root (for example, `ironhackdf/videomind-test-assets/`). The assets are separate from source code and must be obtained with appropriate rights.
+The first two are bound to a **historical six-question** Open University dataset from a separate, licensed asset directory, `../videomind-test-assets/`, and to a configured backend video record. They **do not** reproduce the later team-reported 27-run experiment. The evaluation invokes an agent and LLM judge and incurs external costs.
 
-From `backend/`:
+See [evaluation/README.md](../evaluation/README.md) for the six-question baseline, V2 reported results, and precise missing reproducibility artifacts. LLM-judged 1.00 scores on a small dataset are not guarantees of universal accuracy.
 
-```powershell
-python scripts/create_evaluation_dataset.py
-python scripts/run_rag_evaluation.py
-```
+Live integration helpers in `scripts/check_*_e2e.py` and ingestion scripts may access real external services and/or mutate test data. Review each script, verify authorization and use disposable fixtures before execution.
 
-**API costs:** dataset creation itself does not invoke an OpenAI model, but running the RAG evaluation invokes the agent and an OpenAI-based judge. Avoid rerunning evaluations unnecessarily.
+The authenticated client and browser acceptance history is recorded in [docs/FRONTEND_ACCEPTANCE_2026-11-11.md](../docs/FRONTEND_ACCEPTANCE_2026-11-11.md).
 
-**Validated locally (6 November 2026):**
+## Deployment and operations
 
-- Transcript fallback: **16 chunks** reported for an Open University educational video; video/job and cached transcript confirmed in Supabase.
-- RAG question answering and Pinecone source retrieval: successful.
-- SSE streaming: `meta`, multiple `token` messages, `sources`, and `done` confirmed.
-- Persistent Supabase conversation history: a two-turn conversation was stored and retrieved (one thread, four messages).
-- LangSmith evaluation: **6 questions, 6/6 passing scores** in each of the three metrics, according to the recorded evaluator feedback. This is a small dataset result, not a general accuracy guarantee.
-- Whisper speech-to-text service: an English MP3 was transcribed to timestamped SRT successfully.
+- Public backend: https://videomind-ai-backend.onrender.com
+- Public frontend: https://videomind-ai-ironhack.vercel.app
+- Render supplies the backend process and its environment. Vercel builds the frontend from `frontend/`; Supabase and Pinecone are external managed services.
+- Configure production `CORS_ORIGINS` with the **exact** deployed frontend origin. The backend permits GET, POST, DELETE and OPTIONS, with Authorization/Content-Type request headers.
+- The ingestion worker is controlled by `RUN_INGESTION_WORKER`; verify Render process count, service settings and worker logs before assuming continuous operation. A sleeping/free instance does not process background jobs while suspended.
+- Deployment is controlled through the authorized external accounts; committing to GitHub alone does not prove a new Render instance is serving the merged code.
+- Start with read-only health and CORS checks; use [deployment/verify_public.py](../deployment/verify_public.py) for a bounded, credential-free probe. Only test writes with approved disposable data.
+- Coordinate migrations and signed storage configuration with the backend owner; no deploy script here changes those services automatically.
 
-**Still to validate:** the complete audio-upload API flow, all newly added agent tools together, and the integrated frontend-to-backend workflow.
-
-## Deployment and Collaboration
-
-- Public API: https://videomind-ai-backend.onrender.com
-- The Render deployment currently provides the previously published backend. **New local changes** (expanded agent tools, Supabase-backed chat memory, Whisper audio endpoint, and LangSmith evaluation scripts) must be reviewed, committed, integrated, and deployed separately.
-- Configure `CORS_ORIGINS` on Render to include the React development origin (currently `http://localhost:5177`).
-- Render Free instances can suspend when idle; the in-process worker does not run continuously while the service is asleep.
-- The React frontend is being integrated by a teammate. Coordinate the backend release with frontend testing rather than deploying unreviewed local changes.
+Full process, rollback and account boundaries: [deployment/README.md](../deployment/README.md).
 
 ## Security and Licensing Notes
 
