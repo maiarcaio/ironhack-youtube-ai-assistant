@@ -26,11 +26,8 @@ const navigation: Array<{ id: Page; label: string; icon: string }> = [
   { id: 'notes', label: 'Saved Notes', icon: '✎' },
 ]
 
-const modeLabel = import.meta.env.VITE_USE_MOCK_API === 'true'
-  ? 'Demo mode'
-  : 'Backend mode'
-
 export function VideoMindShell({ children, activePage, onNavigate, onAddVideo, onSearch, onSignOut }: VideoMindShellProps) {
+  const isMockMode = import.meta.env.VITE_USE_MOCK_API === 'true'
   return <div className="min-h-screen bg-[#f7f3f0] text-[#1c1b1a] flex">
     <aside className="fixed left-2 top-2 bottom-2 w-12 sm:left-3.5 sm:top-3.5 sm:bottom-3.5 sm:w-16 bg-[#31302f] rounded-xl sm:rounded-2xl z-50 flex flex-col items-center py-2 sm:py-4 shadow-[0_10px_30px_-4px_rgba(40,38,37,0.18)] border border-[#494645]/40" aria-label="Main navigation">
       <button onClick={() => onNavigate('library')} className="flex flex-col items-center gap-1 mb-6 group" title="VideoMind home" aria-label="Video Library">
@@ -44,7 +41,7 @@ export function VideoMindShell({ children, activePage, onNavigate, onAddVideo, o
     <div className="pl-16 sm:pl-20 flex-1 min-w-0">
       <header className="sticky top-0 h-14 sm:h-16 bg-[#fdf9f6]/90 backdrop-blur-xl z-40 border-b border-[#ede7e1] shadow-[0_1px_8px_rgba(0,0,0,0.03)]">
         <div className="h-14 sm:h-16 w-full px-3 sm:px-6 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0"><div className="flex items-center gap-1.5 text-sm truncate"><button type="button" onClick={() => onNavigate('library')} className="text-[#55423e] hover:text-[#9a442d]">My workspace</button><span className="text-[#88726d] text-xs">/</span><button type="button" onClick={() => onNavigate('library')} className="text-[#1c1b1a] hover:text-[#9a442d] font-semibold">VideoMind AI</button></div><div className="hidden sm:flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#b2efde] text-[#346e61] text-xs font-semibold"><span className="w-1.5 h-1.5 rounded-full bg-[#2d685b]"/>{modeLabel}</div></div>
+          <div className="flex items-center gap-3 min-w-0"><div className="flex items-center gap-1.5 text-sm truncate"><button type="button" onClick={() => onNavigate('library')} className="text-[#55423e] hover:text-[#9a442d]">My workspace</button><span className="text-[#88726d] text-xs">/</span><button type="button" onClick={() => onNavigate('library')} className="text-[#1c1b1a] hover:text-[#9a442d] font-semibold">VideoMind AI</button></div>{isMockMode && <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#b2efde] text-[#346e61] text-xs font-semibold"><span className="w-1.5 h-1.5 rounded-full bg-[#2d685b]"/>Demo mode</div>}</div>
           <div className="flex items-center gap-2 flex-shrink-0">{onSignOut && <button type="button" onClick={onSignOut} className="hidden lg:block text-xs text-[#55423e] hover:text-[#9a442d]">Sign out</button>}<button onClick={onSearch} className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-[#f1edea] hover:bg-[#ebe7e4] text-[#55423e] text-xs font-medium border border-[#dbc1ba]/30" type="button" aria-label="Search videos"><span>⌕</span><span className="hidden md:inline">Search video library...</span><kbd className="hidden lg:inline ml-1.5 px-1.5 py-0.5 text-[10px] rounded bg-[#e5e2df]">⌘K</kbd></button><button onClick={onAddVideo} className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#9a442d] text-white hover:bg-[#5b1604] transition-all shadow-[0_4px_16px_-2px_rgba(154,68,45,0.25)] text-xs font-semibold" type="button" aria-label="Add video"><span aria-hidden="true">＋</span><span className="hidden sm:inline">Add video</span></button></div>
         </div>
       </header>

@@ -9,6 +9,19 @@ import { VideoMindShell } from './VideoMindShell'
 afterEach(cleanup)
 
 describe('VideoMindShell brand mark', () => {
+  it('only exposes the demo badge in mock mode', () => {
+    vi.stubEnv('VITE_USE_MOCK_API', 'false')
+    const props = { activePage: 'library' as const, onNavigate: vi.fn(), onAddVideo: vi.fn(), onSearch: vi.fn() }
+    const { unmount } = render(<VideoMindShell {...props}><p>Content</p></VideoMindShell>)
+    expect(screen.queryByText('Backend mode')).toBeNull()
+    expect(screen.queryByText('Demo mode')).toBeNull()
+    unmount()
+
+    vi.stubEnv('VITE_USE_MOCK_API', 'true')
+    render(<VideoMindShell {...props}><p>Content</p></VideoMindShell>)
+    expect(screen.getByText('Demo mode')).toBeTruthy()
+  })
+
   it('uses the shared brand image and keeps home navigation working', async () => {
     const user = userEvent.setup()
     const onNavigate = vi.fn()
