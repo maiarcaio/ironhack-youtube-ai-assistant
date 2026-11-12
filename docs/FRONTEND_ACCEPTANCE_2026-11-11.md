@@ -4,7 +4,7 @@ Date: 11 November 2026
 Real YouTube acceptance commit: `cb836c0ffc7b2911770f1a3303f0c81f6291db53`
 Streaming correction commit: `161815bbf3c4f64679f98d0fbec6f3190ab36cfe`
 
-This report covers the frontend changes now merged through PR #16, PR #17 and PR #24 into `main`. Production observations below are tied to the deployed commit actually inspected, not inferred from preview history.
+This report covers the frontend changes merged through PRs #16, #17, #24, #25 and #26, plus the backend DELETE CORS fix in PR #27, into `main`. Production observations below are tied to the deployed commit actually inspected, not inferred from preview history.
 
 ## Current production verification (2026-11-12)
 
@@ -16,7 +16,7 @@ Post-session download inspection verified the export artifacts. The individual M
 
 Live Terra/Sol acceptance was prepared but not submitted. The selected Ready YouTube record has a verified transcript and timestamp evidence; no production AI request was made in this pass, so streaming, grounded-answer and citation behavior remain unverified for the current deployment.
 
-Vercel production deployment `5n1LAYQLa9GpwMBQHXkHPtxYHsrK` is Ready, aliased to `https://videomind-ai-ironhack.vercel.app`, and reports Git SHA `b7ef04802cad674370e7a792e60e61e563b9edc2` from `main`. In an authorized authenticated browser session, a fresh production load displayed the Active and Archived controls, per-card Archive/Remove actions, real library titles and thumbnails, a Ready YouTube workspace, transcript segments with genuine timestamps, and the browser-local Notes tab. The Archived collection loaded one existing record and exposed Restore-first behavior.
+An earlier November 12 Vercel deployment (`5n1LAYQLa9GpwMBQHXkHPtxYHsrK`) was Ready at Git SHA `b7ef04802cad674370e7a792e60e61e563b9edc2` and served `https://videomind-ai-ironhack.vercel.app` at that time. It is historical evidence, not the current integrated `main` SHA. A later GitHub Vercel status check reported successful deployment for integrated `main` at `ab1d6192aa7fdcff26395b9cd50dd8cb153370ef`, while the exact live Vercel deployment ID/alias-to-SHA was not separately recorded in this acceptance pass. In an authorized authenticated browser session, a fresh production load displayed the Active and Archived controls, per-card Archive/Remove actions, real library titles and thumbnails, a Ready YouTube workspace, transcript segments with genuine timestamps, and the browser-local Notes tab. The Archived collection loaded one existing record and exposed Restore-first behavior.
 
 An earlier production inspection showed a transient `Failed to fetch` warning and a bounded Render timeout; those are historical observations superseded by the current HTTP 200 health and CORS checks above. No Terra/Sol request or new audio upload was made during this acceptance pass.
 
@@ -28,7 +28,7 @@ The public backend health check responded `HTTP 200` with `{"status":"ok"}`. Pro
 
 ### Superseded production inspection record (historical)
 
-Vercel previously reported production **Ready** at `main` commit `44edf29fb236156567a81396d2d238c630c4103f` (merged PR #17). That observation is superseded by the November 12 deployment `5n1LAYQLa9GpwMBQHXkHPtxYHsrK`, which reports current `main` SHA `b7ef04802cad674370e7a792e60e61e563b9edc2`. The earlier statement that authenticated production inspection was unsuccessful applies only to that historical inspection and must not be read as the current production result.
+Vercel previously reported production **Ready** at `main` commit `44edf29fb236156567a81396d2d238c630c4103f` (merged PR #17). That observation was later superseded by the November 12 deployment `5n1LAYQLa9GpwMBQHXkHPtxYHsrK` at `b7ef04802cad674370e7a792e60e61e563b9edc2`; subsequent merges advanced `main` to `ab1d6192aa7fdcff26395b9cd50dd8cb153370ef`. Neither historical Vercel deployment should be described as the current `main` release. The earlier statement that authenticated production inspection was unsuccessful applies only to that historical inspection and must not be read as the current production result.
 
 ## Acceptance matrix
 
@@ -62,7 +62,7 @@ The browser suites are simulated/intercepted coverage. They are not evidence of 
 ## Remaining follow-up and historical blockers
 
 - **Resolved in the PR #17 preview:** the earlier HTTP 400 preview CORS and HTTP 503 private-storage failures. A later preflight returned HTTP 200 with the exact allowed origin, and one authorized M4A upload was accepted, processed to Ready, and usable for transcript, signed playback and grounded chat. The raw POST status was not captured.
-- **Still pending:** live Terra/Sol grounded-answer validation, production archive/restore mutation checks, and full export-file content validation. The one authorized production Remove mutation passed. The authenticated production library, player, transcript, notes, Archived UI and existing audio observations are documented above.
+- **Still pending:** live Terra/Sol grounded-answer validation, production archive/restore mutation checks, and exhaustive source-by-source comparison of all eight bulk-exported transcripts (individual exports and eight unique bulk sections were already inspected). The one authorized production Remove mutation passed. The authenticated production library, player, transcript, notes, Archived UI and existing audio observations are documented above.
 - **Backend-owned:** production validation of the evidence-sufficiency/abstention behavior introduced in PR #20; verified LangSmith/model-quality, latency, baseline and cost measurements where available. PR #20's local/backend tests do not substitute for live production checks.
 
 No additional audio upload occurred during the later production-deployment inspection.
