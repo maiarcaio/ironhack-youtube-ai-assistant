@@ -39,7 +39,9 @@ test.describe('authenticated library management — intercepted', () => {
     await page.route(`${API}/api/v1/videos/${ID}`, async (route) => { deletes += 1; await route.fulfill({ status: 204 }) })
     await page.goto('/'); await signIn(page); await expect(page.getByText('Focus lecture')).toBeVisible()
     const remove = page.getByRole('button', { name: 'Remove', exact: true }); await remove.click(); await expect(page.getByRole('dialog')).toBeVisible()
-    await page.getByRole('dialog').click({ position: { x: 2, y: 2 } }); await expect(page.getByRole('dialog')).toHaveCount(0)
+    const dialogBox = await page.getByRole('dialog').boundingBox()
+    if (!dialogBox) throw new Error('Dialog bounding box unavailable')
+    await page.mouse.click(Math.max(1, dialogBox.x - 8), dialogBox.y + dialogBox.height / 2); await expect(page.getByRole('dialog')).toHaveCount(0)
     expect(deletes).toBe(0)
   })
 
