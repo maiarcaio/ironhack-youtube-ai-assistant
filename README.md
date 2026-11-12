@@ -18,7 +18,7 @@ Mock mode is intentionally separate from authenticated mode. Mock data and answe
 
 ## Release status
 
-The production domain and `main` branch are the authoritative released baseline. PR #16 (authenticated audio upload/player), PR #17 (unified workspace/navigation and transcript lifecycle correction), PR #24 (library management) and PR #27 (authenticated DELETE CORS preflight) are merged into `main`; PR #18 remains the documentation review. Current integrated main is `ab1d6192aa7fdcff26395b9cd50dd8cb153370ef`.
+The production domain and `main` branch are the authoritative released baseline. PR #16 (audio upload/player), PR #17 (workspace and transcript lifecycle), PR #24 (library management), PR #25 (removal, citations and streaming UX), PR #26 (standalone Transcripts Library) and PR #27 (authenticated DELETE CORS preflight) are merged into `main`; PR #18 remains the documentation review. Current integrated main is `ab1d6192aa7fdcff26395b9cd50dd8cb153370ef`.
 
 ## Architecture
 
