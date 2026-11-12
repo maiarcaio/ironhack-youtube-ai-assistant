@@ -16,7 +16,7 @@ const assistantMessage: ConversationMessage = {
   insufficient_evidence: false,
   sources: [
     {
-      chunk_id: 'chunk-101',
+      chunk_id: 'owner:video:0101',
       excerpt: 'The relevant context is retrieved first.',
       start_seconds: 522,
       end_seconds: 540,

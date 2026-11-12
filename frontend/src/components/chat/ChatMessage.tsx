@@ -75,12 +75,20 @@ function FormattedAssistantText({ text }: { text: string }) {
 
 function presentCitationMarkers(text: string, sources: ChatSource[]): string {
   if (sources.length === 0) return text
-  const known = new Set(sources.map((source) => source.chunk_id.match(/\d+/g)?.at(-1)).filter(Boolean).map(Number))
+  const known = new Set(
+    sources
+      .map((source) => source.chunk_id.split(':'))
+      .filter((parts) => parts.length === 3 && /^\d{4}$/.test(parts[2]))
+      .map((parts) => Number(parts[2])),
+  )
   return text.replace(/\[Chunks?\s+(\d+)(?:\s*[–-]\s*(\d+))?\]/gi, (marker, first: string, last?: string) => {
-    const values = last
-      ? Array.from({ length: Number(last) - Number(first) + 1 }, (_, index) => String(Number(first) + index).padStart(first.length, '0'))
-      : [first]
-    return values.every((value) => known.has(Number(value))) ? '' : marker
+    const start = Number(first)
+    const end = last ? Number(last) : start
+    if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || end < start || end - start > 1000) return marker
+    for (let value = start; value <= end; value += 1) {
+      if (!known.has(value)) return marker
+    }
+    return ''
   }).replace(/[ \t]{2,}/g, ' ').trim()
 }
 

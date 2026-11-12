@@ -93,9 +93,10 @@ describe('ChatPanel', () => {
     await user.click(screen.getByRole('button', { name: 'Send question' }))
 
     expect(screen.queryByText('No answer was returned by the API.')).toBeNull()
-    expect(screen.getByRole('status').textContent).toContain('Receiving answer')
+    expect(screen.getByRole('status').textContent).toContain('Preparing grounded answer')
 
     callbacks.onToken?.('First ')
+    expect((await screen.findByRole('status')).textContent).toContain('Receiving answer')
     callbacks.onToken?.('answer.')
     expect(await screen.findByText('First answer.')).toBeTruthy()
     expect(screen.queryByText('No answer was returned by the API.')).toBeNull()
