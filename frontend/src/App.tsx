@@ -128,7 +128,7 @@ function App({ session = null }: AppProps) {
     try {
       const response = await activeVideoApi.listArchivedVideos()
       if (requestId !== archivedRequestRef.current || ownerId !== sessionUserIdRef.current) return false
-      setArchivedVideos(response.videos.map(toVideo).filter((video): video is Video => video !== null))
+      setArchivedVideos(response.videos.map(toVideo).filter((video): video is Video => video !== null && !hiddenVideoIdsRef.current.has(video.id)))
       return true
     } catch (error) {
       if (requestId !== archivedRequestRef.current || ownerId !== sessionUserIdRef.current) return false
@@ -147,6 +147,7 @@ function App({ session = null }: AppProps) {
         hiddenVideoIdsRef.current = new Set(hiddenVideoIdsRef.current).add(video.id)
         setHiddenVideoIds(hiddenVideoIdsRef.current)
         setVideos((current) => current.filter((item) => item.id !== video.id))
+        setArchivedVideos((current) => current.filter((item) => item.id !== video.id))
       }
       if (selectedVideoId === video.id) { setSelectedVideoId(null); setActivePage('library') }
       const activeRefreshed = await loadLibrary()
