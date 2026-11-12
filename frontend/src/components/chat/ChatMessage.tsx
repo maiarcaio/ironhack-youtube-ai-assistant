@@ -73,6 +73,17 @@ function FormattedAssistantText({ text }: { text: string }) {
     ))
 }
 
+function presentCitationMarkers(text: string, sources: ChatSource[]): string {
+  if (sources.length === 0) return text
+  const known = new Set(sources.map((source) => source.chunk_id.match(/\d+/g)?.at(-1)).filter(Boolean).map(Number))
+  return text.replace(/\[Chunks?\s+(\d+)(?:\s*[–-]\s*(\d+))?\]/gi, (marker, first: string, last?: string) => {
+    const values = last
+      ? Array.from({ length: Number(last) - Number(first) + 1 }, (_, index) => String(Number(first) + index).padStart(first.length, '0'))
+      : [first]
+    return values.every((value) => known.has(Number(value))) ? '' : marker
+  }).replace(/[ \t]{2,}/g, ' ').trim()
+}
+
 // Display one message without making network requests.
 export function ChatMessage({
   message,
@@ -104,7 +115,7 @@ export function ChatMessage({
       >
         {message.text.trim()
           ? isAssistant
-            ? <FormattedAssistantText text={message.text} />
+            ? <FormattedAssistantText text={presentCitationMarkers(message.text, message.sources)} />
             : message.text
           : isAssistant
             ? message.status === 'complete' || message.status === undefined

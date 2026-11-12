@@ -100,6 +100,15 @@ describe('ChatMessage', () => {
     expect(html).toContain('08:42')
   })
 
+  it('removes verified chunk markers from answer prose while preserving unresolved markers', () => {
+    const html = renderToStaticMarkup(createElement(ChatMessage, { message: {
+      ...assistantMessage,
+      text: 'Verified point [Chunks 0101–0101]. Unresolved [Chunks 0999–1000].',
+    } }))
+    expect(html).not.toContain('[Chunks 0101–0101]')
+    expect(html).toContain('[Chunks 0999–1000]')
+  })
+
   it('clearly identifies insufficient evidence', () => {
     const message: ConversationMessage = {
       ...assistantMessage,

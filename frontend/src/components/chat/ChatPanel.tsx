@@ -417,10 +417,12 @@ export function ChatPanel({
           <div
             className="vm-chat-loading"
             role="status"
+            aria-live="polite"
           >
+            <span className="vm-chat-loading-spinner" aria-hidden="true" />
             {stream
-              ? 'Streaming answer from VideoMind AI…'
-              : 'Retrieving evidence and preparing an answer…'}
+              ? 'Receiving answer…'
+              : 'Preparing grounded answer…'}
           </div>
         )}
       </div>
