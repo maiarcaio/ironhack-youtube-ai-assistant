@@ -2,7 +2,7 @@
 
 This document describes the frontend deployment boundary. It does not apply Render settings or contain backend credentials.
 
-The production deployment tracks `main`. PR #16 and PR #17 are merged; verify the branch and commit shown by Vercel before using a deployment as acceptance evidence.
+The production deployment tracks `main`. PR #16, PR #17 and PR #24 are merged. As of November 12, 2026, Vercel reports production deployment `5n1LAYQLa9GpwMBQHXkHPtxYHsrK` Ready at `https://videomind-ai-ironhack.vercel.app`, serving `main` commit `b7ef04802cad674370e7a792e60e61e563b9edc2`. Re-check Vercel and backend availability before treating this as complete live acceptance evidence.
 
 ## Architecture
 

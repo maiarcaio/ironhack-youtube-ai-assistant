@@ -4,7 +4,13 @@ Date: 11 November 2026
 Real YouTube acceptance commit: `cb836c0ffc7b2911770f1a3303f0c81f6291db53`
 Streaming correction commit: `161815bbf3c4f64679f98d0fbec6f3190ab36cfe`
 
-This report covers the frontend changes now merged through PR #16 and PR #17 into `main`. Production observations below are tied to the deployed commit actually inspected, not inferred from preview history.
+This report covers the frontend changes now merged through PR #16, PR #17 and PR #24 into `main`. Production observations below are tied to the deployed commit actually inspected, not inferred from preview history.
+
+## Current production verification (2026-11-12)
+
+Vercel production deployment `5n1LAYQLa9GpwMBQHXkHPtxYHsrK` is Ready, aliased to `https://videomind-ai-ironhack.vercel.app`, and reports Git SHA `b7ef04802cad674370e7a792e60e61e563b9edc2` from `main`. In an authorized authenticated browser session, a fresh production load displayed the Active and Archived controls, per-card Archive/Remove actions, real library titles and thumbnails, a Ready YouTube workspace, transcript segments with genuine timestamps, and the browser-local Notes tab. The Archived collection loaded one existing record and exposed Restore-first behavior.
+
+The same session showed a transient `Failed to fetch` library warning during the initial refresh; no destructive action was taken. Terra/Sol live requests, archive/restore/delete mutations and new audio uploads remain pending explicit joint acceptance. A bounded shell health check to Render timed out without an HTTP response, so backend availability requires confirmation by the backend owner.
 
 ## Environment
 
@@ -31,7 +37,7 @@ The public backend health check responded `HTTP 200` with `{"status":"ok"}`. Thi
 
 ## Automated evidence
 
-The real YouTube acceptance above belongs to `cb836c0ffc7b2911770f1a3303f0c81f6291db53`. After the streaming correction at `161815bbf3c4f64679f98d0fbec6f3190ab36cfe`, the automated suites passed: 147/147 Vitest, 3/3 mock Playwright, and 11/11 authenticated/intercepted Playwright; build and ESLint also passed. The full real YouTube acceptance was not independently repeated after the streaming correction.
+The real YouTube acceptance above belongs to `cb836c0ffc7b2911770f1a3303f0c81f6291db53`. After subsequent integration, the current automated evidence is 157/157 Vitest, 3/3 mock Playwright and 15/15 authenticated/intercepted Playwright, with build, ESLint and diff checks passing in the combined main/library-management validation. The full Terra/Sol production acceptance and production mutation checks remain pending.
 
 The browser suites are simulated/intercepted coverage. They are not evidence of live Supabase, Render, Whisper, Pinecone, signed storage, model-provider, or real YouTube iframe playback.
 

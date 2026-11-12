@@ -18,7 +18,7 @@ Mock mode is intentionally separate from authenticated mode. Mock data and answe
 
 ## Release status
 
-The production domain and `main` branch are the authoritative released baseline. PR #16 (authenticated audio upload/player) and PR #17 (unified workspace/navigation and transcript lifecycle correction) are merged into `main`; PR #18 remains the documentation review. Production acceptance should still be verified against the deployed commit and backend availability.
+The production domain and `main` branch are the authoritative released baseline. PR #16 (authenticated audio upload/player), PR #17 (unified workspace/navigation and transcript lifecycle correction) and PR #24 (library management) are merged into `main`; PR #18 remains the documentation review. Production acceptance should still be verified against the deployed commit and backend availability.
 
 ## Architecture
 
