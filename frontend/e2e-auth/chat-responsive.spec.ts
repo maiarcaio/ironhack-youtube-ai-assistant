@@ -1,3 +1,4 @@
+// Deterministic, intercepted browser coverage: no live account or model calls.
 import { expect, test } from '@playwright/test'
 
 const API = 'http://localhost:8000'
