@@ -78,7 +78,7 @@ Timestamped evidence for transcript search.`,
   await page.getByLabel('Password').fill('offline-password')
   await page.getByRole('button', { name: 'Sign in' }).click()
   await page.getByRole('button', { name: 'Transcript lecture' }).click()
-  await page.getByRole('button', { name: 'Searchable Transcript' }).click()
+  await page.getByRole('tab', { name: 'Transcript' }).click()
 
   await expect(page.getByText('Opening context.')).toBeVisible()
   await page.getByRole('textbox', { name: 'Search transcript' }).fill('evidence')
