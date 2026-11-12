@@ -3,6 +3,7 @@
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, expect, it, vi } from 'vitest'
+import { StrictMode } from 'react'
 
 import type { Video } from '../../types/video'
 import { TranscriptsLibraryView } from './TranscriptsLibraryView'
@@ -39,4 +40,30 @@ it('keeps archived records readable but prevents opening an archived player', as
   await user.click(within(archived).getByRole('button', { name: 'Read transcript' }))
   await waitFor(() => expect(getVideoTranscript).toHaveBeenCalledWith('video-b'))
   expect(onOpenVideo).not.toHaveBeenCalled()
+})
+
+it('loads correctly under StrictMode and ignores an out-of-order reader response', async () => {
+  const user = userEvent.setup()
+  let resolveA!: (value: unknown) => void
+  let resolveB!: (value: unknown) => void
+  getVideoTranscript.mockImplementation((id: string) => new Promise((resolve) => { if (id === 'video-a') resolveA = resolve; else resolveB = resolve }))
+  render(<StrictMode><TranscriptsLibraryView videos={videos} onOpenVideo={vi.fn()} onBackToLibrary={vi.fn()} /></StrictMode>)
+  const cards = screen.getByRole('region', { name: 'Transcript library' })
+  await user.click(within(cards).getAllByRole('button', { name: 'Read transcript' })[0])
+  await user.click(within(cards).getAllByRole('button', { name: 'Read transcript' })[1])
+  resolveB({ video_id: 'video-b', format: 'txt', content: 'Beta response' })
+  expect(await screen.findByText('Beta response')).toBeTruthy()
+  resolveA({ video_id: 'video-a', format: 'txt', content: 'Stale alpha response' })
+  await waitFor(() => expect(screen.queryByText('Stale alpha response')).toBeNull())
+})
+
+it('reports mismatched and partial export responses without disabling export permanently', async () => {
+  const user = userEvent.setup()
+  getVideoTranscript.mockImplementation(async (id: string) => id === 'video-a'
+    ? { video_id: 'wrong-video', format: 'txt', content: 'wrong' }
+    : Promise.reject(new Error('transcript unavailable')))
+  render(<TranscriptsLibraryView videos={videos} onOpenVideo={vi.fn()} onBackToLibrary={vi.fn()} />)
+  await user.click(screen.getByRole('button', { name: 'Export all' }))
+  expect((await screen.findByRole('status')).textContent).toContain('Exported 0; 2 transcripts could not be loaded.')
+  expect(screen.getByRole('button', { name: 'Export all' }).hasAttribute('disabled')).toBe(false)
 })

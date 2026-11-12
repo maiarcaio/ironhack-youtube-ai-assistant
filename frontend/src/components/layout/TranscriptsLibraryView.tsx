@@ -39,9 +39,13 @@ export function TranscriptsLibraryView({ videos, archivedVideoIds = new Set(), o
   const [exporting, setExporting] = useState(false)
   const [exportMessage, setExportMessage] = useState<string | null>(null)
   const requestRef = useRef(0)
+  const exportRequestRef = useRef(0)
   const mountedRef = useRef(true)
 
-  useEffect(() => () => { mountedRef.current = false; requestRef.current += 1 }, [])
+  useEffect(() => {
+    mountedRef.current = true
+    return () => { mountedRef.current = false; requestRef.current += 1; exportRequestRef.current += 1 }
+  }, [])
 
   const uniqueVideos = useMemo(() => Array.from(new Map(videos.map((video) => [video.id, video])).values()), [videos])
   const filteredVideos = useMemo(() => {
@@ -98,25 +102,25 @@ export function TranscriptsLibraryView({ videos, archivedVideoIds = new Set(), o
 
   async function exportAll(): Promise<void> {
     if (exporting) return
+    const exportId = ++exportRequestRef.current
     setExporting(true)
     setExportMessage(null)
     const sections: string[] = []
     let failures = 0
-    const requestId = ++requestRef.current
-    for (const video of uniqueVideos) {
-      if (!mountedRef.current || requestId !== requestRef.current) return
-      try {
-        const transcript = await getVideoTranscript(video.id)
-        if (!transcript) { failures += 1; continue }
-        sections.push(`## ${video.title}\n\nSource: ${video.source_url}\nFormat: ${transcript.format}\n\n${transcript.content}`)
-      } catch { failures += 1 }
-    }
-    if (sections.length > 0) {
-      download(`videomind-transcripts-${new Date().toISOString().slice(0, 10)}.md`, `# VideoMind transcripts\n\nStored transcripts exported from the authenticated browser session.\n\n${sections.join('\n\n---\n\n')}`)
-    }
-    if (mountedRef.current && requestId === requestRef.current) {
+    try {
+      for (const video of uniqueVideos) {
+        if (!mountedRef.current || exportId !== exportRequestRef.current) return
+        try {
+          const transcript = await getVideoTranscript(video.id)
+          if (!transcript || transcript.video_id !== video.id) { failures += 1; continue }
+          sections.push(`## ${video.title}\n\nSource: ${video.source_url}\nFormat: ${transcript.format}\n\n${transcript.content}`)
+        } catch { failures += 1 }
+      }
+      if (!mountedRef.current || exportId !== exportRequestRef.current) return
+      if (sections.length > 0) download(`videomind-transcripts-${new Date().toISOString().slice(0, 10)}.md`, `# VideoMind transcripts\n\nStored transcripts exported from the authenticated browser session.\n\n${sections.join('\n\n---\n\n')}`)
       setExportMessage(failures ? `Exported ${sections.length}; ${failures} transcript${failures === 1 ? '' : 's'} could not be loaded.` : `Exported ${sections.length} transcript${sections.length === 1 ? '' : 's'}.`)
-      setExporting(false)
+    } finally {
+      if (mountedRef.current && exportId === exportRequestRef.current) setExporting(false)
     }
   }
 
