@@ -21,4 +21,8 @@ export const mockVideoApi: VideoApi = {
   },
   getVideoStatus,
   listVideos,
+  async listArchivedVideos() { return { videos: [] } },
+  async archiveVideo() { throw new Error('Library management is unavailable in demo mode.') },
+  async restoreVideo() { throw new Error('Library management is unavailable in demo mode.') },
+  async deleteVideo() { throw new Error('Library management is unavailable in demo mode.') },
 }

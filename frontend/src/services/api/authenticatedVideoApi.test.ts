@@ -15,6 +15,32 @@ afterEach(() => {
 })
 
 describe('authenticated video API adapter', () => {
+  it('validates archive and restore mutation responses', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ video_id: 'v1', archived: true }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ video_id: 'v1', archived: false }), { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
+    const api = createAuthenticatedVideoApi(BASE_URL, async () => 'token')
+    await expect(api.archiveVideo('v1')).resolves.toBeUndefined()
+    await expect(api.restoreVideo('v1')).resolves.toBeUndefined()
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('rejects an invalid mutation response and handles DELETE 204', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ video_id: 'wrong', archived: true }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+    vi.stubGlobal('fetch', fetchMock)
+    const api = createAuthenticatedVideoApi(BASE_URL, async () => 'token')
+    await expect(api.archiveVideo('v1')).rejects.toThrow('Invalid library mutation response')
+    await expect(api.deleteVideo('v1')).resolves.toBeUndefined()
+  })
+
+  it('maps common mutation errors without fabricating success', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ detail: 'Still processing.' }), { status: 409 })))
+    const api = createAuthenticatedVideoApi(BASE_URL, async () => 'token')
+    await expect(api.deleteVideo('v1')).rejects.toThrow('Still processing.')
+  })
   it('sends the current Supabase token and normalizes completed', async () => {
     const getAccessToken = vi.fn().mockResolvedValue('access-token')
     const fetchMock = vi.fn().mockResolvedValue(

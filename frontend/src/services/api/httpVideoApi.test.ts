@@ -19,6 +19,9 @@ afterEach(() => {
 })
 
 describe('HTTP Video API adapter — FastAPI V1', () => {
+  it('does not expose unauthenticated logical delete operations', async () => {
+    await expect(createHttpVideoApi(BASE_URL).deleteVideo('video-123')).rejects.toThrow('requires an authenticated session')
+  })
   // TEST 1: Verify video ingestion follows the OpenAPI V1 contract.
   it('sends a video ingestion request', async () => {
     const mockFetch = vi.fn().mockResolvedValue(

@@ -40,6 +40,7 @@ async function requestJson(
       throw new Error(`API request failed (${response.status})`)
     }
 
+    if (response.status === 204) return undefined
     return await response.json()
   } catch (error) {
     if (controller.signal.aborted) {
@@ -105,5 +106,13 @@ export function createHttpVideoApi(baseUrl: string): VideoApi {
 
       return validateVideoListResponse(data)
     },
+
+    async listArchivedVideos(): Promise<VideoListResponse> {
+      const data = await requestJson(`${apiBase}/api/v1/videos?archived=true`)
+      return validateVideoListResponse(data)
+    },
+    async archiveVideo(): Promise<void> { throw new Error('Archive requires an authenticated session.') },
+    async restoreVideo(): Promise<void> { throw new Error('Restore requires an authenticated session.') },
+    async deleteVideo(): Promise<void> { throw new Error('Delete requires an authenticated session.') },
   }
 }

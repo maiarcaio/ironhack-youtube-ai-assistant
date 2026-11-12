@@ -28,4 +28,8 @@ export interface VideoApi {
 
   // Retrieve the collection of available videos.
   listVideos(): Promise<VideoListResponse>
+  listArchivedVideos(): Promise<VideoListResponse>
+  archiveVideo(videoId: string): Promise<void>
+  restoreVideo(videoId: string): Promise<void>
+  deleteVideo(videoId: string): Promise<void>
 }
